@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THE BOX — opening sequence</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #020108; }
+  /* #space + the cosmic field styles come from engine.js; only the title overlay is scene-local */
+  #ui { position: fixed; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding-top: 10vh; text-align: center; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: #eaf0ff; z-index: 7; }
+  #title { font-size: clamp(44px, 9vw, 124px); font-weight: 800; letter-spacing: .2em; text-shadow: 0 0 34px rgba(150,175,255,.7); opacity: 0; animation: rise 1.6s ease .3s forwards; }
+  #tag { margin-top: 20px; max-width: 34ch; font-size: clamp(13px, 1.6vw, 18px); font-weight: 400; line-height: 1.5; color: #aeb9e6; opacity: 0; animation: rise 1.6s ease 1.1s forwards; }
+  #hint { position: fixed; bottom: 32px; left: 0; right: 0; text-align: center; font-family: "Segoe UI", system-ui, sans-serif; font-size: 12px; letter-spacing: .26em; text-transform: uppercase; color: #6f7aa8; z-index: 7; opacity: 0; animation: blink 3.2s ease 2.2s infinite; }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes blink { 0%, 100% { opacity: 0; } 50% { opacity: .85; } }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+  <h2 class="sr-only">The opening screen: a cosmic field of glowing squares with a central hero square that follows the mouse — the finished game playing itself.</h2>
+  <div id="space"></div>
+  <div id="ui">
+    <div id="title">THE BOX</div>
+    <div id="tag">Everything on this screen is one square, drawn entirely by code. Finish the game, and you'll have written all of it yourself.</div>
+  </div>
+  <div id="hint">move your mouse</div>
+
+  <script src="../engine.js"></script>
+  <script>
+    BoxGame.injectStyles();
+    new BoxGame.CosmicField(document.getElementById('space')).start();
+  </script>
+</body>
+</html>

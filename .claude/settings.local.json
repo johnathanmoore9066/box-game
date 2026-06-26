@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node verify.js)",
+      "Bash(node sim.js)",
+      "Bash(NAME=steve node sim.js)"
+    ]
+  }
+}

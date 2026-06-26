@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THE BOX — the shell</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+  <h2 class="sr-only">The shell: a read-only code editor on the left showing a program built on this.box, and a live cosmic scene on the right. Rename the box to orphan every reference and collapse the world to a blank slate.</h2>
+
+  <div class="app">
+    <div class="editor">
+      <div class="tabbar">
+        <div class="tab"><span class="dot">&#9679;</span> scene.js</div>
+        <div class="tab muted">engine.js</div>
+        <div class="tab muted">+</div>
+      </div>
+      <div class="code"></div>
+      <div class="console" id="console">
+        <div class="task">This whole universe hangs on one name: <b>this.box</b>. The <span class="self">this</span> is the scene that owns it. Rename <b>box</b> to make it yours &mdash; and watch what depends on it.</div>
+        <div class="row">
+          <span class="caret">&#10095;</span><span class="pre">this.</span>
+          <input class="cmd" id="rename" autocomplete="off" spellcheck="false" placeholder="your name for the box&hellip;" />
+          <span class="enter">&#9166; rename</span>
+        </div>
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+
+    <div class="cosmic-stage">
+      <div class="stage-label">live preview &middot; scene.js</div>
+      <div class="replay" id="replay">&#8635; replay</div>
+      <div id="space"></div>
+      <div id="restBox"></div>
+      <div class="afterglow" id="afterglow">
+        <div class="big">Everything's gone &mdash; except the square you named.</div>
+        <div class="sub">that's where we start building. <a href="../tiers/tier0.html" style="color:#54e6a0;text-decoration:none;pointer-events:auto"><b>tier 0 &rarr;</b></a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- the foundation -->
+  <script src="../engine.js"></script>
+
+  <!-- this scene just composes engine parts: a Ledger, a CosmicField, and the rename hook -->
+  <script>
+  (function () {
+    BoxGame.injectStyles();
+
+    // the program shown in the ledger — everything hangs on this.box
+    const SCENE = [
+      'class Scene {', '  setup() {', '    this.box = new Box();',
+      '    this.box.color = "hsl(230, 90%, 65%)";', '    this.box.glow  = 60;',
+      '    this.box.size  = 130;', '', '    this.field = new Field(220);',
+      '    this.field.forEach(s => s.follow(this.box));', '  }', '',
+      '  mousemove(e) {', '    this.box.leanToward(e.x, e.y);',
+      '    this.field.parallax(e, this.box.depth);', '  }', '',
+      '  frame(t) {', '    this.box.pulse(t);', '    this.box.cycleHue(t);',
+      '    this.field.drift(t);', '    requestAnimationFrame(() => this.frame());',
+      '  }', '}', '', 'new Scene().start();'
+    ];
+    const DECL = 2, REFS = [3, 4, 5, 8, 12, 13, 17, 18];
+
+    const codeEl = document.querySelector('.code');
+    const ledger = new BoxGame.Ledger(codeEl).load(SCENE);
+    const field = new BoxGame.CosmicField(document.getElementById('space')).start();
+
+    const input = document.getElementById('rename');
+    const msg = document.getElementById('msg');
+    const consoleEl = document.getElementById('console');
+    const RESERVED = ['this', 'box', 'new', 'class', 'const', 'let', 'var', 'return', 'function', 'if', 'for', 'while', 'true', 'false', 'null', 'undefined'];
+    let done = false;
+
+    function shake(m) { consoleEl.classList.add('shake'); msg.className = 'msg err'; msg.textContent = m; setTimeout(() => consoleEl.classList.remove('shake'), 330); }
+
+    input.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const v = input.value.trim();
+      if (!/^[A-Za-z_$][\w$]*$/.test(v)) { shake('not a valid name — letters, digits, _ or $, no leading digit'); return; }
+      if (RESERVED.includes(v)) { shake('"' + v + '" is taken — pick a name that’s truly yours'); return; }
+      input.disabled = true; applyRename(v);
+    });
+
+    function applyRename(name) {
+      if (done) return; done = true;
+      BoxGame.setVarName(name);   // every tier from here reads in the player's name
+      ledger.rename(DECL, '    this.' + name + ' = new Box();');
+      REFS.forEach((idx, k) => setTimeout(() => ledger.orphan(idx, '// ✘ this.box is undefined'), 140 + k * 150));
+      setTimeout(() => field.collapse(), 320);
+      const end = 140 + REFS.length * 150 + 650;
+      setTimeout(() => codeEl.classList.add('fade'), end);
+      setTimeout(() => revealBlank(name), end + 650);
+    }
+
+    function revealBlank(name) {
+      codeEl.classList.remove('fade');
+      ledger.load(['// everything else is gone. this one stayed.', '', name + ' = "grey"']);
+      consoleEl.innerHTML = '<div class="task">Your blank slate: one square, named <b>' + name + '</b>, value <b>"grey"</b>. ' +
+        'You pulled it out of the machine &mdash; no more <span class="self">this</span>, it’s simply yours now. The whole game rebuilds from here.</div>';
+      document.getElementById('restBox').classList.add('show');
+      document.getElementById('afterglow').classList.add('show');
+      document.getElementById('replay').classList.add('show');
+    }
+
+    document.getElementById('replay').onclick = () => location.reload();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THE BOX — a game that teaches code</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: radial-gradient(130% 100% at 50% 30%, #141a28 0%, #0a0c12 60%, #06070c 100%); color: #e6e9f2; font-family: ui-sans-serif, "Segoe UI", system-ui, sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; padding: 32px; }
+  main { width: 100%; max-width: 560px; }
+  .brand { font-size: clamp(40px, 8vw, 84px); font-weight: 800; letter-spacing: .14em; text-shadow: 0 0 34px rgba(150,175,255,.55); }
+  .blurb { margin-top: 10px; color: #97a3c4; font-size: 15px; line-height: 1.5; }
+  nav { margin-top: 30px; display: flex; flex-direction: column; gap: 10px; }
+  a.card, .card.soon { display: flex; align-items: center; gap: 14px; text-decoration: none; color: #e6e9f2; background: #0d1017; border: 1px solid #1c2230; border-radius: 12px; padding: 15px 18px; transition: border-color .2s, transform .12s, background .2s; }
+  a.card:hover { border-color: #4dd0ff; transform: translateY(-1px); background: #11161f; }
+  .card .ix { font: 600 13px ui-monospace, monospace; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #11151f; border: 1px solid #243049; color: #4dd0ff; flex: 0 0 auto; }
+  .card .body { flex: 1 1 auto; min-width: 0; }
+  .card .t { font-weight: 600; font-size: 14.5px; }
+  .card .d { font-size: 12.5px; color: #8a93ad; margin-top: 2px; }
+  .card.soon { opacity: .5; }
+  .card.soon .ix { color: #56618a; }
+  .divider { margin: 22px 0 12px; font: 11px ui-monospace, monospace; letter-spacing: .2em; text-transform: uppercase; color: #56618a; }
+  footer { margin-top: 26px; font: 12px ui-monospace, monospace; color: #56618a; }
+</style>
+</head>
+<body>
+  <main>
+    <div class="brand">THE BOX</div>
+    <p class="blurb">Learn to program by rebuilding one square. Every line you write is real code that stays on screen forever — and your next move has to work with everything you've already written.</p>
+
+    <div class="divider">start here</div>
+    <nav>
+      <a class="card" href="scenes/opening.html"><span class="ix">&#9658;</span><span class="body"><div class="t">The Opening</div><div class="d">The finished game, playing itself. Move your mouse.</div></span></a>
+      <a class="card" href="scenes/shell.html"><span class="ix">&#9671;</span><span class="body"><div class="t">The Shell</div><div class="d">Name the box — and watch everything that depends on it collapse.</div></span></a>
+    </nav>
+
+    <div class="divider">the climb</div>
+    <nav>
+      <a class="card" href="tiers/tier0.html"><span class="ix">0</span><span class="body"><div class="t">Variables &amp; Values</div><div class="d">Name a square, give it a color, learn that the last line wins.</div></span></a>
+      <a class="card" href="tiers/tier1.html"><span class="ix">1</span><span class="body"><div class="t">Properties</div><div class="d">size, shape, opacity — numbers &amp; booleans, reached with a dot.</div></span></a>
+      <a class="card" href="tiers/tier2.html"><span class="ix">2</span><span class="body"><div class="t">Functions</div><div class="d">bottle an action with a parameter, then call it — define vs. run, and return.</div></span></a>
+      <a class="card" href="tiers/tier3.html"><span class="ix">3</span><span class="body"><div class="t">Events</div><div class="d">wire the box to react — click and hover run a handler you write.</div></span></a>
+      <span class="card soon"><span class="ix">4</span><span class="body"><div class="t">Arrays &amp; loops</div><div class="d">many squares at once, with iteration. (soon)</div></span></span>
+    </nav>
+
+    <footer>one engine.js, shared by every page &middot; no build step &mdash; just open a file</footer>
+  </main>
+  <!-- dev level-select: forget any name set by the shell, so tiers opened directly read as `box` -->
+  <script>try { localStorage.removeItem('boxgame.name'); } catch (e) {}</script>
+</body>
+</html>
