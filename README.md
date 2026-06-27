@@ -110,11 +110,11 @@ optional; the critical path stays completable for the impatient player. See `DES
 | 7 | Objects & `this` | objects, methods, `this` | ✅ built |
 | 8 | Classes | constructors, inheritance | ✅ built |
 | 9 | Modules | export / import | ✅ built |
-| 10 | The opening screen | everything, composed | ✅ reference built |
+| 10 | The opening (free build) | everything, unlocked — keep building | ✅ built (finale) |
 
 ## Status
 
-The full spine is built — Tiers 0–9, plus the Tier-10 reference opening and both scenes.
+The full spine is built — Tiers 0–9, plus the Tier-10 free-build finale.
 The engine unfuses *valid?* from *advance?* — `goal` / `until` / `reveals` and the `ctx` reps
 helpers — backward compatibly (omit them and a tier behaves exactly as before). **Tier 0**
 is the color ladder (named → hex → rgb → gradient, advancing on distinct colors, reveals
@@ -161,6 +161,26 @@ them, and each new tier opens with the *full* record of everything you've writte
 then appends its own banner comment (no more re-seeding `box = "grey"`). State is written
 on commit, not on every render, so Tier 6's 60fps loop doesn't hammer storage. A Menu
 **Reset** clears the carried state alongside name + progress (`BoxGame.clearCarry()`).
-*Next:* **Phase 3** — a Tier-10 free-edit finale, and an error-explainer that files
-syntax/“traceback” explanations into Discoveries. (The `scenes/*.html` files are now
-orphaned — their onboarding logic lives in `game.js`; cleanup is a later step.)
+
+**Phase 3 — every error teaches (error-explainer done).** A mistake is now a discovery,
+not a dead end. `parseAssignment` + `assignCheck` tag each genuine syntax/type error with a
+reusable `code` (`compare-vs-assign`, `needs-quotes`, `out-of-range`, …); `mountTier` keeps
+showing the terse inline message but also fires `discover({ tier, errorCode })` once per code.
+The host (`game.js`) carries an `ERRORS` catalog of plain-language explanations and renders a
+**Tracebacks** section in the Discoveries panel — only the errors you've actually hit, a
+collection that grows as you stumble (a wall of ways-to-fail would spoil more than it teaches).
+Records persist in `boxgame.progress.discovered` under `e.<code>` keys, alongside the concept
+discoveries. Pacing-only nudges ("this step wants `box.size`") stay uncoded, so they never
+file a traceback.
+
+**Phase 3 — the finale (Tier 10 done).** The spine ends on an open canvas. `tiers/tier10.js`
+registers like any tier but is `freeplay: true` — a single step that accepts everything the
+game taught (the Tier-0 bare form `box = "blue"` *and* any `box.prop = value`, routed by
+whether the line has a dot) and never advances (`until: () => false`). The engine seeds it from
+the carried box + the full accumulating ledger, so the player walks in with everything they
+built and just keeps shaping it; `mountTier` shows a `tier 10 · free build` label in place of
+step dots. Reaching it *is* the finish: the host marks a `freeplay` tier complete on entry
+(it has no step to complete). The error-explainer works here too — a bad line still files its
+traceback. *Remaining Phase 3:* the `scenes/*.html` files are orphaned prototypes (the live
+onboarding lives in `game.js`); a cleanup is possible later, but the site is deployed, so
+confirm before removing anything.

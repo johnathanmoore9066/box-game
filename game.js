@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  const LAST_TIER = 9;   // highest implemented tier (Phase 1). Tier 10 (free-edit) lands later.
+  const LAST_TIER = 10;  // highest implemented tier — Tier 10 is the free-build finale.
 
   // level-select / settings rows (one per tier, plus the not-yet-built finale)
   const TIER_META = [
@@ -23,7 +23,7 @@
     { t: 'Objects & this',       d: 'bundle data and behavior — an object, a method, this.' },
     { t: 'Classes',              d: 'a blueprint for boxes — new instances, inheritance.' },
     { t: 'Modules',              d: 'code across files — import names, export your own.' },
-    { t: 'The Opening (free build)', d: 'everything unlocked — keep building. (soon)' }
+    { t: 'The Opening (free build)', d: 'everything unlocked — keep building.' }
   ];
 
   // discoveries catalog — concepts recorded as the player meets them (tier complete + reveals)
@@ -50,6 +50,24 @@
     { key: 't8.r1', t: 'Inheritance',        d: 'A subclass inherits its parent’s constructor, then specializes — no rewriting.' },
     { key: 't9',    t: 'Modules',            d: 'import names from another file and use them as your own; export marks what others may use.' },
     { key: 't9.r1', t: 'A file is a module', d: 'Everything in a file stays private to it until you export it.' }
+  ];
+
+  // tracebacks — an error teaches too. The engine tags genuine syntax/type mistakes
+  // with a reusable `code`; the first time you hit one, its explanation lands here.
+  // Keyed e.<code>; codes are emitted by engine.js (parseAssignment + assignCheck).
+  const ERRORS = [
+    { code: 'no-equals',         t: 'A statement with no “=”',     d: 'Assigning means name = value. With no “=”, there’s nothing to set — the line just names a thing and stops.' },
+    { code: 'compare-vs-assign', t: '“==” is not “=”',             d: 'One “=” assigns (put this value in that name). Two or three (==, ===) ask a question — “are these equal?” — and answer true/false instead of changing anything.' },
+    { code: 'empty-value',       t: 'Nothing after the “=”',       d: 'Every assignment needs a right-hand side — the value to store. An “=” with nothing after it has nothing to give the name.' },
+    { code: 'unclosed-quote',    t: 'An unclosed quote',           d: 'Text starts and ends with a matching quote. Open one and never close it and the language keeps reading, waiting for the end of the string that never comes.' },
+    { code: 'needs-quotes',      t: 'Text needs quotes',           d: 'Quotes mark a value as literal text. Without them a word is read as a name to look up, not the characters themselves — so a color or label has to be wrapped: "blue".' },
+    { code: 'unwanted-quotes',   t: 'A number in quotes is text',  d: 'Quotes turn 240 into the text "240" — and text can’t be measured or compared as a number. Numbers and booleans are written bare, no quotes.' },
+    { code: 'needs-number',      t: 'This property wants a number', d: 'Some properties hold a count or measure — a size, an angle. They expect a number like 240, not a word or text.' },
+    { code: 'needs-boolean',     t: 'Yes-or-no is true / false',   d: 'A boolean property has exactly two values: true or false, written bare (no quotes). It’s the language’s on/off switch.' },
+    { code: 'out-of-range',      t: 'A value out of range',        d: 'A property can carry limits — a size, an opacity — and a value past them can’t apply. Stay inside the range the property allows.' },
+    { code: 'unknown-prop',      t: 'A property that doesn’t exist', d: 'You can only set properties the box actually has. Reach for one it doesn’t define and there’s nothing there to change.' },
+    { code: 'unknown-color',     t: 'A color the browser doesn’t know', d: 'Named colors are a fixed vocabulary the browser ships with. Outside it, spell the color as a number — a hex like #4dd0ff, or rgb(…).' },
+    { code: 'needs-dot',         t: 'Reaching a part with a dot',  d: 'The box is one thing made of named parts. A dot reaches inside to one of them — box.size — so you change that part, not the whole box.' }
   ];
 
   const $ = (s) => document.querySelector(s);
@@ -80,12 +98,14 @@
     cfg.onComplete = () => complete(n);
     if (BoxGame.tiers[n + 1]) cfg.onAdvance = () => goTo(n + 1);   // Continue → only if there's a next
     BoxGame.mountTier(cfg);
+    if (cfg.freeplay) complete(n);   // the finale never "advances" — reaching it is the finish
     showChrome();
   }
 
   /* ---------- discoveries recording ---------- */
   function onDiscover(info) {
-    const key = info.complete ? ('t' + info.tier)
+    const key = info.errorCode ? ('e.' + info.errorCode)
+              : info.complete ? ('t' + info.tier)
               : (info.reveal != null ? ('t' + info.tier + '.r' + info.reveal) : null);
     if (!key || progress.discovered[key]) return;
     progress.discovered[key] = true; save();
@@ -172,10 +192,20 @@
       '<div class="d">' + (got(e.key) ? e.d : 'Reach this in the game to unlock its explanation.') + '</div></div>'
     ).join('');
     const n = DISCO.filter((e) => got(e.key)).length;
+    // tracebacks: only the errors actually hit, a collection that grows as you stumble.
+    // Unlike concepts we don't pre-list the locked ones — a wall of ways-to-fail spoils
+    // more than it teaches; an error earns its explanation by happening.
+    const errsHit = ERRORS.filter((e) => got('e.' + e.code));
+    const errItems = errsHit.length
+      ? errsHit.map((e) => '<div class="disc trace"><div class="t">' + e.t + '</div><div class="d">' + e.d + '</div></div>').join('')
+      : '<div class="disc locked"><div class="d">No tracebacks yet — when a line errors, its explanation lands here.</div></div>';
     showPanel(
       '<span class="x" data-close>&#10005;</span><h3>Discoveries</h3>' +
       '<div class="sub">' + n + ' of ' + DISCO.length + ' uncovered — the ideas you’ve met on the climb.</div>' +
-      items
+      items +
+      '<h3 class="trace-h">Tracebacks</h3>' +
+      '<div class="sub">' + errsHit.length + ' decoded — every error explains itself, then joins the record.</div>' +
+      errItems
     );
   }
 

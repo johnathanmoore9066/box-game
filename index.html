@@ -73,6 +73,10 @@
   .disc.locked .t { color: #7d8aa3; }
   .disc.locked .t::after { content: " · locked"; color: #56618a; font-weight: 400; }
   .disc.locked .d { color: #56618a; font-style: italic; }
+  /* tracebacks: errors decoded — warm accent to set them apart from concepts */
+  .sheet .trace-h { margin: 24px 0 4px; font-size: 16px; }
+  .disc.trace { border-left: 2px solid #ff6b7d; }
+  .disc.trace .t { color: #ff9aa6; }
 </style>
 </head>
 <body>
@@ -86,7 +90,7 @@
   <div id="panel"></div>   <!-- settings / discoveries -->
 
   <!-- the shared foundation ( ?v bumped when assets change, to bust caches ) -->
-  <script src="engine.js?v=3"></script>
+  <script src="engine.js?v=5"></script>
   <!-- tiers register themselves as config factories -->
   <script src="tiers/tier0.js?v=1"></script>
   <script src="tiers/tier1.js?v=2"></script>
@@ -98,7 +102,8 @@
   <script src="tiers/tier7.js?v=1"></script>
   <script src="tiers/tier8.js?v=1"></script>
   <script src="tiers/tier9.js?v=1"></script>
+  <script src="tiers/tier10.js?v=1"></script>
   <!-- the host controller: progress, navigation, onboarding, panels -->
-  <script src="game.js?v=2"></script>
+  <script src="game.js?v=4"></script>
 </body>
 </html>

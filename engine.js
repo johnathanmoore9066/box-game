@@ -125,12 +125,12 @@ window.BoxGame = (function () {
     const tagOf = opts.tag || null;     // (value, parsed) => tag (else: color form)
     return function (p, ctx) {
       const name = (ctx && ctx.name) || opts.name || 'box';
-      if (p.error) return { error: p.error };
+      if (p.error) return { error: p.error, code: p.code };
       if (p.target !== name) return { error: 'You can only change  ' + name + '  here — start the line with  ' + name };
 
       let prop = p.prop;
       if (!prop) {
-        if (!bare) return { error: 'Reach into the box with a dot — like  ' + name + '.size = 240' };
+        if (!bare) return { error: 'Reach into the box with a dot — like  ' + name + '.size = 240', code: 'needs-dot' };
         prop = bare;
       } else if (bare && !need) {
         return { error: 'Just set  ' + name + '  itself for now:  ' + name + ' = "color"' };
@@ -140,19 +140,19 @@ window.BoxGame = (function () {
         return { error: 'This step is about  ' + name + '.' + need + '.' };
       }
       const spec = props[prop];
-      if (!spec) return { error: 'The box has no property  ' + name + '.' + prop + '. Try ' + Object.keys(props).join(', ') + '.' };
+      if (!spec) return { error: 'The box has no property  ' + name + '.' + prop + '. Try ' + Object.keys(props).join(', ') + '.', code: 'unknown-prop' };
 
       if (spec.type === 'color') {
-        if (p.type !== 'string') return { error: 'A color is text, so it needs quotes:  ' + (p.prop ? name + '.' + prop : name) + ' = "' + p.rawValue + '"' };
-        if (!isColor(p.value)) return { error: 'The browser doesn’t recognize "' + p.value + '". Try  blue · tomato · gold — or a hex like  #4dd0ff' };
+        if (p.type !== 'string') return { error: 'A color is text, so it needs quotes:  ' + (p.prop ? name + '.' + prop : name) + ' = "' + p.rawValue + '"', code: 'needs-quotes' };
+        if (!isColor(p.value)) return { error: 'The browser doesn’t recognize "' + p.value + '". Try  blue · tomato · gold — or a hex like  #4dd0ff', code: 'unknown-color' };
       } else if (spec.type === 'number') {
-        if (p.type === 'string') return { error: 'A ' + prop + ' is a number — drop the quotes:  ' + name + '.' + prop + ' = ' + p.value };
-        if (p.type !== 'number') return { error: name + '.' + prop + ' needs a number, like  ' + name + '.' + prop + ' = 240' };
-        if (spec.min != null && (p.value < spec.min || p.value > spec.max)) return { error: 'Keep  ' + name + '.' + prop + '  between ' + spec.min + ' and ' + spec.max + '.' };
+        if (p.type === 'string') return { error: 'A ' + prop + ' is a number — drop the quotes:  ' + name + '.' + prop + ' = ' + p.value, code: 'unwanted-quotes' };
+        if (p.type !== 'number') return { error: name + '.' + prop + ' needs a number, like  ' + name + '.' + prop + ' = 240', code: 'needs-number' };
+        if (spec.min != null && (p.value < spec.min || p.value > spec.max)) return { error: 'Keep  ' + name + '.' + prop + '  between ' + spec.min + ' and ' + spec.max + '.', code: 'out-of-range' };
       } else if (spec.type === 'boolean') {
-        if (p.type !== 'boolean') return { error: name + '.' + prop + ' is yes-or-no — write  true  or  false  (no quotes):  ' + name + '.' + prop + ' = true' };
+        if (p.type !== 'boolean') return { error: name + '.' + prop + ' is yes-or-no — write  true  or  false  (no quotes):  ' + name + '.' + prop + ' = true', code: 'needs-boolean' };
       } else if (spec.type === 'string') {
-        if (p.type !== 'string') return { error: name + '.' + prop + ' is text — wrap it in quotes.' };
+        if (p.type !== 'string') return { error: name + '.' + prop + ' is text — wrap it in quotes.', code: 'needs-quotes' };
       }
 
       const lhs = p.prop ? name + '.' + prop : name;
@@ -171,17 +171,17 @@ window.BoxGame = (function () {
     if (!line) return { error: 'Type a line of code.' };
     const m = line.match(/^([A-Za-z_$][\w$]*)(\.[A-Za-z_$][\w$]*)?\s*(=+)\s*(.*)$/);
     if (!m) {
-      if (!/=/.test(line)) return { error: 'To set a value you need an  =  sign.' };
+      if (!/=/.test(line)) return { error: 'To set a value you need an  =  sign.', code: 'no-equals' };
       return { error: 'Start with a variable name, like  box = ...' };
     }
     const target = m[1], prop = m[2] ? m[2].slice(1) : null, eq = m[3];
     const rhs = m[4].trim().replace(/;+$/, '').trim();
-    if (eq.length > 1) return { error: eq + ' compares two things (it asks “are these equal?”). To set a value, use a single  =' };
-    if (rhs === '') return { error: 'What value should it get? Put something after the  =' };
+    if (eq.length > 1) return { error: eq + ' compares two things (it asks “are these equal?”). To set a value, use a single  =', code: 'compare-vs-assign' };
+    if (rhs === '') return { error: 'What value should it get? Put something after the  =', code: 'empty-value' };
     const qs = rhs.match(/^(["'])(.*)\1$/);
     let value, type;
     if (qs) { value = qs[2]; type = 'string'; }
-    else if (/^["']/.test(rhs)) return { error: 'Looks like a missing closing quote. Wrap the whole value, like  "blue"' };
+    else if (/^["']/.test(rhs)) return { error: 'Looks like a missing closing quote. Wrap the whole value, like  "blue"', code: 'unclosed-quote' };
     else if (/^-?\d+(\.\d+)?$/.test(rhs)) { value = parseFloat(rhs); type = 'number'; }
     else if (rhs === 'true' || rhs === 'false') { value = (rhs === 'true'); type = 'boolean'; }
     else { value = rhs; type = 'identifier'; }
@@ -389,14 +389,18 @@ window.BoxGame = (function () {
     document.head.appendChild(st);
   }
   function layoutHTML(cfg, name) {
-    const dots = '<span class="pdot"></span>'.repeat((cfg.steps || []).length);
+    // a freeplay tier (the finale) has no curriculum to track: show an open-ended
+    // "free build" label in place of step dots, rather than one perpetual empty dot.
+    const free = !!cfg.freeplay;
+    const dots = free ? '' : '<span class="pdot"></span>'.repeat((cfg.steps || []).length);
+    const plabel = 'tier ' + (cfg.tier != null ? cfg.tier : '') + (free ? ' &middot; free build' : '');
     const ph = renameIdent(cfg.placeholder || (name + ' = "blue"'), name);
     const t = cfg.teaser || { done: 'Tier complete &#10003;', next: '' };
     const teaser = { done: renameInCode(t.done, name), next: renameInCode(t.next || '', name) };
     return '' +
       '<div class="editor">' +
         '<div class="tabbar"><div class="tab"><span class="dot">&#9679;</span> ' + (cfg.file || 'box.js') + '</div>' +
-          '<div class="progress"><span class="plabel">tier ' + (cfg.tier != null ? cfg.tier : '') + '</span>' + dots + '</div></div>' +
+          '<div class="progress"><span class="plabel">' + plabel + '</span>' + dots + '</div></div>' +
         '<div class="code"></div>' +
         '<div class="console">' +
           '<div class="lesson"></div><div class="hints"></div>' +
@@ -538,7 +542,9 @@ window.BoxGame = (function () {
       if (!cur) return;
       const parsed = parseAssignment(raw);
       const res = cur.check(parsed, ctx, raw) || {};
-      if (res.error) { con.err(res.error); return; }
+      // an error still teaches: surface it inline, and file a traceback explanation
+      // into Discoveries (once) when the check tagged it with a reusable code.
+      if (res.error) { con.err(res.error); if (res.code) discover({ tier: cfg.tier, errorCode: res.code }); return; }
 
       const commitText = res.commit || String(raw).trim();
       ledger.commit(commitText);
