@@ -1,25 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 1: properties</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 1 — properties. Reach into the box with a dot (box.size, box.rounded, box.opacity) to change numbers and booleans on the live square. Old lines persist; the last assignment wins.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 1 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier1.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(1, function () {
     // No per-tier validation boilerplate anymore: the engine owns the box's property
     // registry (size, rounded, opacity, rotation, color, glow) and assignCheck() does
     // the dot / type / range checking with teachable errors. require pins a step to one
     // property; a bare assignCheck() accepts any of them.
     const prop = (name) => BoxGame.assignCheck({ require: name });
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 1,
       box: { color: 'grey', size: 150, radius: 18, opacity: 1, rotation: 0 },
       caption: 'box.color = "grey"',
@@ -55,8 +43,5 @@
         '<h4>One box, many properties.</h4>You’ve been setting <b>properties</b> — named parts of the box, each with its own type: text for <code>color</code>, numbers (whole, decimal, even negative) for <code>size</code> and <code>rotation</code>, true/false for <code>rounded</code> — ' +
         'reached, every time, through a dot. That’s the box becoming an <i>object</i>: one thing that bundles many values. (That word, <i>object</i>, earns its own tier later.) ' +
         'You wrote <b>' + ctx.ledger.count() + ' lines</b> and every one still stands. Keep playing, or move on to <b>Tier 2: Functions</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

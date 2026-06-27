@@ -397,7 +397,7 @@ window.BoxGame = (function () {
         '<div class="stage-label">tier ' + (cfg.tier != null ? cfg.tier : '') + ' &middot; the box</div>' +
         '<div class="box-wrap"><div id="boxEl"></div></div>' +
         '<div class="caption"></div>' +
-        '<div class="teaser"><div class="card"><div class="done">' + teaser.done + '</div><div class="next">' + (teaser.next || '') + '</div></div></div>' +
+        '<div class="teaser"><div class="card"><div class="done">' + teaser.done + '</div><div class="next">' + (teaser.next || '') + '</div><button class="go" type="button" style="display:none">Continue &rarr;</button></div></div>' +
       '</div>';
   }
 
@@ -416,6 +416,16 @@ window.BoxGame = (function () {
       el.appendChild(b);
     });
   }
+
+  /* ---------- tier registry + discovery hook (host-driven SPA) ----------
+     Each tier file registers a config *factory* instead of mounting itself, so the
+     single-page host can mount/re-mount any tier on demand. discover() lets the host
+     record concepts as the player meets them (reveals fired, tiers completed). */
+  const TIERS = {};
+  function registerTier(n, factory) { TIERS[n] = factory; }
+  let _onDiscover = null;
+  function setDiscoverHandler(fn) { _onDiscover = fn; }
+  function discover(info) { if (_onDiscover) { try { _onDiscover(info); } catch (e) {} } }
 
   /* ---------- mountTier: wire a whole lesson from a config ---------- */
   function mountTier(cfg) {
@@ -482,6 +492,7 @@ window.BoxGame = (function () {
           : stepHistory.length >= (rv.when || 1);
         if (!hit) return;
         firedReveals.add(i);
+        discover({ tier: cfg.tier, reveal: i });
         if (rv.lesson) showLesson(rv.lesson(ctx));
         if (rv.hints) buildHints(hintsEl, rv.hints, con, name);
       });
@@ -528,6 +539,13 @@ window.BoxGame = (function () {
       if (step >= steps.length) {
         const t = root.querySelector('.teaser'); if (t) t.classList.add('show');
         showLesson(cfg.outro ? cfg.outro(ctx) : steps[steps.length - 1].lesson(ctx));
+        discover({ tier: cfg.tier, complete: true });
+        if (typeof cfg.onComplete === 'function') cfg.onComplete(ctx);
+        const go = root.querySelector('.teaser .go');
+        if (go && typeof cfg.onAdvance === 'function') {
+          go.style.display = '';
+          go.onclick = () => cfg.onAdvance(ctx);
+        }
       } else {
         showLesson(steps[step].lesson(ctx));
       }
@@ -605,6 +623,8 @@ window.BoxGame = (function () {
   .teaser .done { font:600 14px ui-sans-serif, system-ui; color:#54e6a0; }
   .teaser .next { margin-top:5px; font:12px ui-monospace, monospace; color:#7d8aa3; }
   .teaser .next b { color:#4dd0ff; }
+  .teaser .go { margin-top:13px; font:600 13px ui-sans-serif, system-ui; color:#05060a; background:#54e6a0; border:none; border-radius:9px; padding:9px 20px; cursor:pointer; pointer-events:auto; transition:transform .12s ease, box-shadow .2s ease; box-shadow:0 6px 20px rgba(84,230,160,.32); }
+  .teaser .go:hover { transform:translateY(-1px); box-shadow:0 9px 26px rgba(84,230,160,.46); }
 
   /* --- scenes (shell + opening): the cosmic field --- */
   .cosmic-stage { position:relative; min-width:0; overflow:hidden; background:#020108; }
@@ -633,6 +653,7 @@ window.BoxGame = (function () {
     highlight: highlight, isColor: isColor, parseAssignment: parseAssignment,
     Box: Box, Stage: Stage, Squares: Squares, Ledger: Ledger, Console: Console, CosmicField: CosmicField,
     mountTier: mountTier, injectStyles: ensureStyles,
+    registerTier: registerTier, tiers: TIERS, discover: discover, onDiscover: setDiscoverHandler,
     props: PROPS, colorForm: colorForm, assignCheck: assignCheck,
     varName: varName, setVarName: setVarName, clearVarName: clearVarName
   };

@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 4: arrays &amp; loops</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 4 — arrays and loops. Make a list of squares with row = ["tomato", "gold", "teal"], then change them all at once with for (s of row) { s.size = 70 }, then give each a different look by its position with row.forEach((s, i) => s.rotation = i * 15). Old lines persist.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 4 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier4.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(4, function () {
     // New grammar this tier: an array literal, for…of, and forEach with an index.
     // One box becomes many. The reuse that keeps it small: a loop body  s.prop = value
     // is validated and applied by BoxGame.assignCheck with the loop variable standing in
@@ -99,7 +87,7 @@
       return { commit: line, parsed: { value: body }, message: 'each square shaped by its position — that’s the field taking form.' };
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 4,
       collection: [],
       ledger: ['// tier 4 — arrays & loops', '// one box was lonely. let’s make many.'],
@@ -147,8 +135,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s arrays &amp; loops.</h4>One name held <b>many</b> squares; one <b>loop</b> styled them all; one <b>index</b> made each its own. You went from a single box to a whole field — the shape the opening screen is made of — in a handful of lines that all still stand. Keep playing, or climb to <b>Tier 5: Conditionals &amp; state</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

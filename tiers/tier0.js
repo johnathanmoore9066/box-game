@@ -1,24 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 0: variables &amp; values</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 0 — variables and values. Type box = "color" to repaint the live square. Paint a few and the game reveals that a color is really a number: hex, then rgb channels, then a whole gradient. Old lines persist; the last assignment wins.</h2>
-  <div id="app"></div>
-
-  <!-- the whole foundation lives here, shared by every tier -->
-  <script src="../engine.js"></script>
-
-  <!-- ...and the tier is just this config. one step, deepened by reveals. The whole
-       color ladder is one engine validator: assignCheck({ bare: 'color' }) accepts any
-       real color in any form and auto-tags its form (named/hex/rgb/gradient) so the
-       reveals below can fire on "once they've actually tried a hex". -->
-  <script>
-    BoxGame.mountTier({
+/* Tier 0 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier0.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(0, function () {
+    return {
       mount: '#app', file: 'box.js', tier: 0,
       box: { color: 'grey' },
       ledger: ['// tier 0 — variables & values', 'box = "grey"'],
@@ -58,7 +41,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s a variable.</h4>One name — <code>box</code> — re-pointed at new values line after line, and every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). You also found that a value has <i>depth</i>: a name, a hex number, three channels, even a whole gradient — all still just <code>box = value</code>. That single idea — <b>assignment</b> — is the floor everything else is built on. Keep playing, or climb to <b>Tier 1: properties</b>.'
-    });
-  </script>
-</body>
-</html>
+    };
+});

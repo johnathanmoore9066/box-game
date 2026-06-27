@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 8: classes</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 8 — classes. Write a blueprint: class Square { constructor(color) { this.color = color } }. Stamp out instances with new Square("tomato") — each new makes another square on the stage. Then inherit: class BigSquare extends Square { constructor(color) { super(color); this.size = 200 } } and new BigSquare("gold"). Old lines persist.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 8 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier8.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(8, function () {
     // New grammar this tier: class / constructor / new / extends. This builds on Tier 7's
     // objects (a class is a blueprint for them) and Tier 4's many-squares stage (each `new`
     // adds an instance to the collection). Reuse: the registry (BoxGame.props) supplies the
@@ -190,7 +178,7 @@
       return doNew(line, ctx);
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 8,
       collection: [],
       ledger: ['// tier 8 — classes', '// one blueprint, a whole family of squares.'],
@@ -230,8 +218,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s classes.</h4>A <b>class</b> is a blueprint; <code>new</code> stamps out <b>instances</b> that share it but carry their own data; and <code>extends</code> lets one blueprint <b>build on</b> another. You went from a single hand-made object to a whole family — the leap a real codebase makes when it stops copying and starts <i>modeling</i>. Keep playing, or climb to <b>Tier 9: Modules</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 7: objects &amp; this</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 7 — objects and this. Build your own object: const ball = { color: "tomato", size: 120, rounded: true } gives the box that shape. Store a function on it (a method) and call it: ball.grow = function() { ball.size = 220 } then ball.grow(). Then use this to read the object's own live state: ball.pulse = function() { this.size = this.size + 30 } and call it a few times to watch it grow. Old lines persist.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 7 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier7.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(7, function () {
     // New grammar this tier: object literals, methods, and `this`. The big reveal is that
     // the box has *been* an object all along (box.color, box.size were object properties).
     // Reuse keeps it small: each `key: value` pair is validated by BoxGame.assignCheck just
@@ -159,7 +147,7 @@
       };
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 7,
       box: { color: 'grey', size: 150 },
       ledger: ['// tier 7 — objects & this', 'box = "grey"'],
@@ -193,8 +181,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s objects, methods &amp; this.</h4>You bundled values under one name, gave that bundle <b>behavior</b>, and used <code>this</code> so a method works with its own live state — the very shape the box itself has had all along. Objects are how real programs keep data and the actions on it <i>together</i>. Every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). Keep playing, or climb to <b>Tier 8: Classes</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

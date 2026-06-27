@@ -5,54 +5,100 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>THE BOX — a game that teaches code</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; background: radial-gradient(130% 100% at 50% 30%, #141a28 0%, #0a0c12 60%, #06070c 100%); color: #e6e9f2; font-family: ui-sans-serif, "Segoe UI", system-ui, sans-serif; }
-  body { display: flex; align-items: center; justify-content: center; padding: 32px; }
-  main { width: 100%; max-width: 560px; }
-  .brand { font-size: clamp(40px, 8vw, 84px); font-weight: 800; letter-spacing: .14em; text-shadow: 0 0 34px rgba(150,175,255,.55); }
-  .blurb { margin-top: 10px; color: #97a3c4; font-size: 15px; line-height: 1.5; }
-  nav { margin-top: 30px; display: flex; flex-direction: column; gap: 10px; }
-  a.card, .card.soon { display: flex; align-items: center; gap: 14px; text-decoration: none; color: #e6e9f2; background: #0d1017; border: 1px solid #1c2230; border-radius: 12px; padding: 15px 18px; transition: border-color .2s, transform .12s, background .2s; }
-  a.card:hover { border-color: #4dd0ff; transform: translateY(-1px); background: #11161f; }
-  .card .ix { font: 600 13px ui-monospace, monospace; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #11151f; border: 1px solid #243049; color: #4dd0ff; flex: 0 0 auto; }
-  .card .body { flex: 1 1 auto; min-width: 0; }
-  .card .t { font-weight: 600; font-size: 14.5px; }
-  .card .d { font-size: 12.5px; color: #8a93ad; margin-top: 2px; }
-  .card.soon { opacity: .5; }
-  .card.soon .ix { color: #56618a; }
-  .divider { margin: 22px 0 12px; font: 11px ui-monospace, monospace; letter-spacing: .2em; text-transform: uppercase; color: #56618a; }
-  footer { margin-top: 26px; font: 12px ui-monospace, monospace; color: #56618a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #05060a; color: #e6e9f2; font-family: ui-sans-serif, "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+
+  /* --- chrome: floating controls (top-right), never the landing --- */
+  #chrome { position: fixed; top: 12px; right: 14px; z-index: 50; display: flex; gap: 8px; }
+  #chrome.hidden { display: none; }
+  .hostbtn { font: 11px ui-monospace, monospace; letter-spacing: .04em; color: #9fb0d0; background: rgba(13,16,23,.82); border: 1px solid #243049; border-radius: 8px; padding: 7px 11px; cursor: pointer; backdrop-filter: blur(6px); transition: border-color .2s, color .2s; }
+  .hostbtn:hover { border-color: #4dd0ff; color: #e6e9f2; }
+  #btnDiscoveries.ping { animation: ping .9s ease; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(124,77,255,.6); } 100% { box-shadow: 0 0 0 14px rgba(124,77,255,0); } }
+
+  #app { height: 100vh; }
+
+  /* --- onboarding scene (opening spectacle → name → collapse) --- */
+  #scene { position: fixed; inset: 0; z-index: 100; background: #020108; display: none; }
+  #scene.show { display: block; }
+  #scene #space { position: absolute; inset: 0; }   /* engine paints the cosmic field here */
+  .intro-ui { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 10vh; text-align: center; pointer-events: none; transition: opacity 1s ease; }
+  .intro-title { font-size: clamp(44px, 9vw, 124px); font-weight: 800; letter-spacing: .2em; text-shadow: 0 0 34px rgba(150,175,255,.7); opacity: 0; animation: rise 1.6s ease .3s forwards; }
+  .intro-tag { margin-top: 18px; max-width: 36ch; font-size: clamp(13px, 1.6vw, 18px); line-height: 1.5; color: #aeb9e6; opacity: 0; animation: rise 1.6s ease 1.1s forwards; }
+  .intro-name { margin-top: 34px; display: flex; align-items: center; gap: 9px; opacity: 0; animation: rise 1.2s ease 2.2s forwards; pointer-events: auto; background: rgba(10,13,19,.66); border: 1px solid #243049; border-radius: 11px; padding: 9px 13px; backdrop-filter: blur(6px); }
+  .intro-name .caret { color: #4dd0ff; font-family: ui-monospace, monospace; }
+  #nameInput { background: transparent; border: none; outline: none; color: #e6e9f2; font: 15px ui-monospace, monospace; width: 230px; }
+  #nameInput::placeholder { color: #586079; }
+  .intro-name .enter { color: #56618a; font: 11px ui-monospace, monospace; white-space: nowrap; }
+  .intro-msg { margin-top: 13px; font: 12px ui-monospace, monospace; min-height: 16px; color: #ff6b7d; }
+  .intro-after { position: absolute; left: 0; right: 0; bottom: 9vh; text-align: center; z-index: 8; opacity: 0; transition: opacity 1s ease; pointer-events: none; padding: 0 20px; }
+  .intro-after.show { opacity: 1; }
+  .intro-after .big { font: 600 19px ui-sans-serif, system-ui; color: #e6e9f2; }
+  .intro-after .sub { margin-top: 7px; font: 13px ui-monospace, monospace; color: #54e6a0; }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  .shake { animation: hshake .33s; }
+  @keyframes hshake { 0%,100% { transform: none; } 20% { transform: translateX(-6px); } 60% { transform: translateX(6px); } }
+
+  /* --- panels (settings + discoveries), modal over everything --- */
+  #panel { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; background: rgba(3,4,8,.72); backdrop-filter: blur(4px); padding: 24px; }
+  #panel.show { display: flex; }
+  .sheet { width: 100%; max-width: 560px; max-height: 84vh; overflow: auto; background: #0d1017; border: 1px solid #1c2230; border-radius: 16px; padding: 22px 22px 26px; }
+  .sheet h3 { margin: 0 0 4px; font-size: 18px; }
+  .sheet .sub { color: #8a93ad; font-size: 13px; margin-bottom: 16px; }
+  .sheet .x { float: right; cursor: pointer; color: #56618a; font-size: 18px; line-height: 1; }
+  .sheet .x:hover { color: #e6e9f2; }
+
+  /* tier list (the relocated level-select) */
+  .lvl { display: flex; align-items: center; gap: 13px; color: #e6e9f2; background: #11151f; border: 1px solid #1c2230; border-radius: 11px; padding: 12px 15px; margin-bottom: 9px; cursor: pointer; transition: border-color .2s, transform .12s; }
+  .lvl:hover:not(.locked) { border-color: #4dd0ff; transform: translateY(-1px); }
+  .lvl .ix { font: 600 13px ui-monospace, monospace; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #0d1017; border: 1px solid #243049; color: #4dd0ff; flex: 0 0 auto; }
+  .lvl .t { font-weight: 600; font-size: 14px; }
+  .lvl .d { font-size: 12px; color: #8a93ad; margin-top: 1px; }
+  .lvl.locked { opacity: .42; cursor: not-allowed; }
+  .lvl.locked .ix { color: #56618a; }
+  .lvl.done .ix { background: #13351f; border-color: #2f7d4f; color: #54e6a0; }
+  .lvl .tag { margin-left: auto; font: 10px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #56618a; }
+  .lvl.done .tag { color: #54e6a0; }
+  .sheetbtns { display: flex; gap: 10px; margin-top: 16px; }
+  .sheetbtn { flex: 1; text-align: center; font: 12px ui-sans-serif, system-ui; color: #9fb0d0; background: #11151f; border: 1px solid #243049; border-radius: 9px; padding: 11px; cursor: pointer; transition: border-color .2s, color .2s; }
+  .sheetbtn:hover { border-color: #4dd0ff; }
+  .sheetbtn.danger { color: #c98a93; }
+  .sheetbtn.danger:hover { border-color: #ff6b7d; color: #ff9aa6; }
+
+  /* discoveries */
+  .disc { border: 1px solid #1c2230; background: #11151f; border-radius: 11px; padding: 12px 14px; margin-bottom: 9px; }
+  .disc .t { font-weight: 600; font-size: 13.5px; color: #e6e9f2; }
+  .disc .d { font-size: 12.5px; color: #aab6d4; margin-top: 3px; line-height: 1.5; }
+  .disc.locked { opacity: .5; }
+  .disc.locked .t { color: #7d8aa3; }
+  .disc.locked .t::after { content: " · locked"; color: #56618a; font-weight: 400; }
+  .disc.locked .d { color: #56618a; font-style: italic; }
 </style>
 </head>
 <body>
-  <main>
-    <div class="brand">THE BOX</div>
-    <p class="blurb">Learn to program by rebuilding one square. Every line you write is real code that stays on screen forever — and your next move has to work with everything you've already written.</p>
+  <div id="chrome" class="hidden">
+    <button class="hostbtn" id="btnDiscoveries">&#10022; Discoveries</button>
+    <button class="hostbtn" id="btnSettings">&#9776; Menu</button>
+  </div>
 
-    <div class="divider">start here</div>
-    <nav>
-      <a class="card" href="scenes/opening.html"><span class="ix">&#9658;</span><span class="body"><div class="t">The Opening</div><div class="d">The finished game, playing itself. Move your mouse.</div></span></a>
-      <a class="card" href="scenes/shell.html"><span class="ix">&#9671;</span><span class="body"><div class="t">The Shell</div><div class="d">Name the box — and watch everything that depends on it collapse.</div></span></a>
-    </nav>
+  <div id="app"></div>     <!-- tiers mount here -->
+  <div id="scene"></div>   <!-- onboarding (opening + name + collapse) -->
+  <div id="panel"></div>   <!-- settings / discoveries -->
 
-    <div class="divider">the climb</div>
-    <nav>
-      <a class="card" href="tiers/tier0.html"><span class="ix">0</span><span class="body"><div class="t">Variables &amp; Values</div><div class="d">Name a square, give it a color, learn that the last line wins.</div></span></a>
-      <a class="card" href="tiers/tier1.html"><span class="ix">1</span><span class="body"><div class="t">Properties</div><div class="d">size, shape, opacity — numbers &amp; booleans, reached with a dot.</div></span></a>
-      <a class="card" href="tiers/tier2.html"><span class="ix">2</span><span class="body"><div class="t">Functions</div><div class="d">bottle an action with a parameter, then call it — define vs. run, and return.</div></span></a>
-      <a class="card" href="tiers/tier3.html"><span class="ix">3</span><span class="body"><div class="t">Events</div><div class="d">wire the box to react — click and hover run a handler you write.</div></span></a>
-      <a class="card" href="tiers/tier4.html"><span class="ix">4</span><span class="body"><div class="t">Arrays &amp; loops</div><div class="d">one box becomes many — a list, a loop, and an index that varies each.</div></span></a>
-      <a class="card" href="tiers/tier5.html"><span class="ix">5</span><span class="body"><div class="t">Conditionals &amp; state</div><div class="d">the box decides — if/else on its own state, and a click toggle.</div></span></a>
-      <a class="card" href="tiers/tier6.html"><span class="ix">6</span><span class="body"><div class="t">Time &amp; the loop</div><div class="d">make it move — setTimeout, setInterval, and a 60fps frame loop.</div></span></a>
-      <a class="card" href="tiers/tier7.html"><span class="ix">7</span><span class="body"><div class="t">Objects &amp; this</div><div class="d">bundle data and behavior — an object, a method, and this.</div></span></a>
-      <a class="card" href="tiers/tier8.html"><span class="ix">8</span><span class="body"><div class="t">Classes</div><div class="d">a blueprint for boxes — constructors, new instances, inheritance.</div></span></a>
-      <a class="card" href="tiers/tier9.html"><span class="ix">9</span><span class="body"><div class="t">Modules</div><div class="d">code across files — import names from one, export your own.</div></span></a>
-      <a class="card" href="scenes/opening.html"><span class="ix">10</span><span class="body"><div class="t">The Opening</div><div class="d">everything, composed — the finished game playing itself.</div></span></a>
-    </nav>
-
-    <footer>one engine.js, shared by every page &middot; no build step &mdash; just open a file</footer>
-  </main>
-  <!-- dev level-select: forget any name set by the shell, so tiers opened directly read as `box` -->
-  <script>try { localStorage.removeItem('boxgame.name'); } catch (e) {}</script>
+  <!-- the shared foundation ( ?v bumped when assets change, to bust caches ) -->
+  <script src="engine.js?v=1"></script>
+  <!-- tiers register themselves as config factories -->
+  <script src="tiers/tier0.js?v=1"></script>
+  <script src="tiers/tier1.js?v=1"></script>
+  <script src="tiers/tier2.js?v=1"></script>
+  <script src="tiers/tier3.js?v=1"></script>
+  <script src="tiers/tier4.js?v=1"></script>
+  <script src="tiers/tier5.js?v=1"></script>
+  <script src="tiers/tier6.js?v=1"></script>
+  <script src="tiers/tier7.js?v=1"></script>
+  <script src="tiers/tier8.js?v=1"></script>
+  <script src="tiers/tier9.js?v=1"></script>
+  <!-- the host controller: progress, navigation, onboarding, panels -->
+  <script src="game.js?v=1"></script>
 </body>
 </html>

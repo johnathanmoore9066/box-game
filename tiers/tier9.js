@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 9: modules</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 9 — modules. Code lives in many files. Import names from a sibling file: import { gold, tomato } from "palette". Then use them as if you wrote them here: box = gold, or box.size = grow(120) with an imported function. Finally export your own work: export const sky = "#4dd0ff" or export function paint(c) { box = c }, so another file could import it. Old lines persist.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 9 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier9.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(9, function () {
     // New grammar this tier: import / export. The whole game has run as one classic script,
     // but engine.js already notes it *models* a module — so here the ledger you've written
     // becomes a module: it imports names from a sibling "palette" file and exports its own.
@@ -115,7 +103,7 @@
         : 'Mark something to share with other files:  export const sky = "#4dd0ff"' };
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 9,
       box: { color: 'grey', size: 150 },
       ledger: ['// tier 9 — modules', 'box = "grey"'],
@@ -165,8 +153,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s modules — and the whole climb.</h4>You <b>imported</b> names from another file and used them as your own, then <b>exported</b> yours for the next file to use. That’s how a program grows past one file without becoming a tangle — and it’s the seam the very <code>engine.js</code> under this game is built to cross. From <code>box = "blue"</code> to a box that has values, properties, functions, events, loops, conditionals, time, objects, classes, and now modules — every line you wrote (<b>' + ctx.ledger.count() + '</b>) still stands. Go watch it all compose in <b>Tier 10: The Opening</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

@@ -6,51 +6,67 @@ That constraint — code you can read and build on but never take back — is th
 
 ## Run it
 
-No build step. Open `index.html` in any modern browser (or open any page directly).
-`engine.js` is a plain `<script src>` shared by every page, so a double-click works —
-just keep the folder structure intact so the relative paths resolve.
+No build step. Open `index.html` — it's the whole game (a single-page host). On a
+first visit it drops you into the opening spectacle, asks you to name your box, then
+collapses into Tier 0; returning visits resume where you left off. Everything is
+classic `<script src>`, so a double-click or any static host (it's deployed on Vercel)
+works — just keep the folder structure intact so the relative paths resolve. The script
+tags carry a `?v=N` query; bump it when you change `engine.js`/a tier/`game.js` so
+returning players don't get a stale cached copy.
 
 ## File tree
 
 ```
 box-game/
-├─ index.html        — launch menu (dev level-select; see “Onboarding” below)
-├─ engine.js         — the shared foundation
+├─ index.html        — the single-page game host: chrome (Menu · Discoveries), #app mount, overlays
+├─ game.js           — host controller: progress (localStorage), navigation + Continue, onboarding, panels
+├─ engine.js         — the shared foundation (Box/Stage/Ledger/Console/CosmicField + mountTier + registry)
 ├─ README.md
 ├─ DESIGN.md         — the reps-over-gates reveal mechanic, as built
-├─ scenes/
-│  ├─ opening.html   — the Tier-10 spectacle: the finished game playing itself
+├─ scenes/           — original standalone set-pieces (logic now ported into game.js onboarding)
+│  ├─ opening.html   — the spectacle: the finished game playing itself
 │  └─ shell.html     — name the box → references orphan → the world collapses → blank slate
-└─ tiers/
-   ├─ tier0.html     — Variables & Values (color ladder: named → hex → rgb → gradient)
-   ├─ tier1.html     — Properties (numbers, booleans, dot-notation)
-   ├─ tier2.html     — Functions (define vs. call, parameters, return)
-   ├─ tier3.html     — Events (click/hover handlers on the live box)
-   ├─ tier4.html     — Arrays & loops (a list of squares, for…of, forEach + index)
-   ├─ tier5.html     — Conditionals & state (if/else on live state, a click toggle)
-   ├─ tier6.html     — Time & the loop (setTimeout, setInterval, a rAF frame loop)
-   ├─ tier7.html     — Objects & this (object literal, methods, this on live state)
-   ├─ tier8.html     — Classes (class/constructor, new instances, extends + super)
-   └─ tier9.html     — Modules (import named values/fns from a sibling, export your own)
+└─ tiers/            — each tier registers a config factory with BoxGame.registerTier(N, …)
+   ├─ tier0.js       — Variables & Values (color ladder: named → hex → rgb → gradient)
+   ├─ tier1.js       — Properties (numbers, booleans, dot-notation)
+   ├─ tier2.js       — Functions (define vs. call, parameters, return)
+   ├─ tier3.js       — Events (click/hover handlers on the live box)
+   ├─ tier4.js       — Arrays & loops (a list of squares, for…of, forEach + index)
+   ├─ tier5.js       — Conditionals & state (if/else on live state, a click toggle)
+   ├─ tier6.js       — Time & the loop (setTimeout, setInterval, a rAF frame loop)
+   ├─ tier7.js       — Objects & this (object literal, methods, this on live state)
+   ├─ tier8.js       — Classes (class/constructor, new instances, extends + super)
+   └─ tier9.js       — Modules (import named values/fns from a sibling, export your own)
 ```
 
-## Onboarding (intended entry flow)
+## Onboarding & flow (the default entry, as built)
 
-The real first run is a sequence, not the menu: **`opening.html`** (the finished
-game playing itself — all values, gradients, parallax) → **`shell.html`** (you name
-the box, which orphans every reference and collapses the world to one blank square)
-→ **`tier0.html`**. `index.html` is currently a dev **level-select** so any tier can
-be opened directly for testing; wiring the sequence back as the default is a known,
-deliberate step (and carries one open seam — see Status).
+`index.html` IS the sequence now. **First launch** → the opening spectacle (the finished
+game playing itself) with a *name your box* prompt → the field collapses → **Tier 0**.
+The box's name is saved and threaded through every tier. Each tier ends with a
+**Continue →** button; finishing a tier marks it complete and **unlocks** the next.
+**Returning players** resume at their current tier — the old level-select is now a
+**Menu** panel (jump to any tier you've reached; replay intro; reset progress), never the
+landing. A **Discoveries** panel collects each concept as you meet it (tiers completed and
+reveals fired). Progress lives in `localStorage` under `boxgame.progress` (+ `boxgame.name`).
 
 ## Architecture
 
+- **index.html + game.js** are the single-page host. `game.js` owns progress
+  (`localStorage`), tier navigation (mounting a registered tier, wiring its **Continue**
+  button), the first-launch onboarding (opening spectacle → name → collapse, composed from
+  `CosmicField`), and the **Menu** + **Discoveries** panels. It mounts tiers into `#app`.
 - **engine.js** owns everything reusable, exported as `window.BoxGame`:
   `Box` (canonical state), `Stage` (renders it), `Ledger` (the accumulating read-only
   pane), `Console`, `CosmicField` (the spectacle + collapse), plus `highlight`,
   `isColor`, `parseAssignment`, `mountTier`, the box-property registry `props`, the
-  validator factory `assignCheck`, and the naming helpers `varName` / `setVarName`.
-- **tiers/** are thin config: `BoxGame.mountTier({ ledger, steps, hints, ... })`.
+  validator factory `assignCheck`, the naming helpers `varName` / `setVarName`, and the
+  host hooks **`registerTier` / `tiers`** (the registry) and **`discover` / `onDiscover`**.
+  `mountTier` additionally accepts optional `onComplete(ctx)` / `onAdvance(ctx)` (the
+  latter renders the Continue button) — all backward compatible.
+- **tiers/** are thin config, now registered as factories:
+  `BoxGame.registerTier(N, () => ({ ledger, steps, hints, ... }))`. The factory runs fresh
+  on every (re)mount, so a tier's local parser state resets cleanly when revisited.
   A tier is data, not plumbing — adding one is a config block, not new infrastructure.
   Each `step` validates with `check`, and **optionally** controls its own pacing:
   `goal` (commits before advancing, default `1`), `until(ctx, parsed)` (a predicate
@@ -122,10 +138,18 @@ just an assignment the engine already validates and applies. A `check` may retur
 `parsed` so reps/`distinct` work for grammars with no `=`. Both scenes (opening + shell) still
 run on the shared engine.
 
-**Variable naming is wired (the old open seam, now closed).** The shell persists the
-player's chosen name; every tier reads in that name automatically, and the engine owns
-the box-property registry + an `assignCheck` factory so tiers stop re-deriving validation.
-Net effect: a new tier that manipulates the box is mostly lessons + a few factory calls.
-The intro *sequence* still isn't the default entry (`index.html` is the dev level-select),
-but the continuity it needs — name in, name everywhere — is done. Tiers 2+ that introduce
-genuinely new grammar (functions, events, loops) still bring their own parser per tier.
+**Variable naming is wired.** Onboarding persists the player's chosen name; every tier
+reads it automatically, and the engine owns the box-property registry + an `assignCheck`
+factory so tiers stop re-deriving validation. A new tier that manipulates the box is
+mostly lessons + a few factory calls.
+
+**Continuous-game restructure — Phase 1 (done).** The game is now one single-page app
+(`index.html` + `game.js`) instead of standalone tier pages. First launch runs the
+opening spectacle → name the box → collapse → Tier 0; the old level-select is now the
+**Menu** panel and never the landing. Progress + tier locking + a **Continue** button +
+a **Discoveries** panel are wired, all saved to `localStorage`. Tiers were converted from
+standalone `.html` pages into config factories registered via `BoxGame.registerTier`.
+*Next:* **Phase 2** — carry the box's visual state and an accumulating ledger across
+tiers; **Phase 3** — a Tier-10 free-edit finale, and an error-explainer that files
+syntax/“traceback” explanations into Discoveries. (The `scenes/*.html` files are now
+orphaned — their onboarding logic lives in `game.js`; cleanup is a later step.)

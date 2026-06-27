@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 6: time &amp; the loop</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 6 — time and the loop. Make the box move on its own: setTimeout(() =&gt; box = "tomato", 800) runs once after a delay, setInterval(() =&gt; box.rotation = box.rotation + 20, 120) runs over and over so the box spins, and loop(() =&gt; box.rotation = box.rotation + 2) runs every frame for smooth animation. Old lines persist.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 6 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier6.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(6, function () {
     // New grammar this tier: setTimeout / setInterval and a per-frame loop (rAF).
     // The reuse that keeps it small: a delayed body is just an assignment the engine
     // already validates (BoxGame.assignCheck via runAssign); an animated body is
@@ -124,7 +112,7 @@
       return { commit: line, parsed: { value: tb.expr ? (tb.prop + ' = ' + tb.expr) : line }, message: 'frame loop running — ' + nm + ' is animating at ~60fps.' };
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 6,
       box: { color: 'grey', size: 150, rotation: 0, glow: 0 },
       ledger: ['// tier 6 — time & the loop', 'box = "grey"'],
@@ -165,8 +153,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s time &amp; the loop.</h4>You made the box move without ever touching it again — <b>once</b> after a delay, <b>over and over</b> on a timer, and <b>every frame</b> in the loop that powers real games. Motion was never magic: it’s state changed a little, repeatedly. Every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). Keep playing, or climb to <b>Tier 7: Objects &amp; this</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

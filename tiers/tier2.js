@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 2: functions</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 2 — functions. Define a reusable action with a parameter, like function paint(c) { box = c }, then call it: paint("red"). Then a function that returns a value, used in an assignment. Old lines persist; the last line wins.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 2 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier2.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(2, function () {
     // New grammar this tier: function definitions and calls. The trick that keeps it
     // small — once a parameter is bound, a function body is just an assignment line the
     // engine already validates and applies. So this tier parses the shape and reuses
@@ -118,7 +106,7 @@
       return { commit: line, apply: res.apply, parsed: { value: out, type: 'number' }, message: 'used the returned value — the box updated.' };
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 2,
       box: { color: 'grey', size: 150 },
       ledger: ['// tier 2 — functions', 'box = "grey"'],
@@ -153,8 +141,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s a function.</h4>A named, reusable action — one <i>did</i> something to the box, one <i>returned</i> a value — each driven by an <b>input</b> you choose at the moment you <b>call</b> it. You taught the box tricks, and every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). Keep playing, or climb to <b>Tier 3: Events</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

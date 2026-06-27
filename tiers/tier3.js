@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 3: events</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 3 — events. Wire the live box to react to you: on("click", () => box = "red") makes clicking the box paint it; on("hover", () => box.size = 240) makes it grow when you point at it. The handler is a function that runs when the event happens. Old lines persist.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 3 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier3.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(3, function () {
     // New grammar this tier: event registration with an arrow-function handler.
     // A handler is just a function that runs *later*, when the player interacts — so its
     // body is (again) an assignment the engine validates/applies. The only new piece is
@@ -53,7 +41,7 @@
       };
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 3,
       box: { color: 'grey', size: 150 },
       ledger: ['// tier 3 — events', 'box = "grey"'],
@@ -85,8 +73,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s an event.</h4>You <b>listened</b> for what the player does and answered with a <b>function</b> that runs on cue — the box now reacts on its own, no new line required. That’s the leap from a drawing to a <i>program people can use</i>. Every handler you wired still stands (you wrote <b>' + ctx.ledger.count() + '</b> lines). Keep playing, or climb to <b>Tier 4: Arrays &amp; loops</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});

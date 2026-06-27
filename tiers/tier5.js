@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>THE BOX — Tier 5: conditionals &amp; state</title>
-<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
-</head>
-<body>
-  <h2 class="sr-only">Tier 5 — conditionals and state. Branch on the box's own state: if (box.size > 100) { box.color = "tomato" }, then if/else where exactly one path runs, then a click handler that re-checks the box each time to toggle it. Old lines persist.</h2>
-  <div id="app"></div>
-
-  <script src="../engine.js"></script>
-  <script>
-  (function () {
+/* Tier 5 — registered as a config factory; the host (game.js) mounts it.
+   Ported from tier5.html; factory body runs fresh on every (re)mount. */
+BoxGame.registerTier(5, function () {
     // New grammar this tier: if / else and comparisons. The box's own properties are the
     // "state" a condition reads. Reuse continues: branch bodies are assignments validated
     // and applied by BoxGame.assignCheck; only the condition needs a tiny evaluator that
@@ -108,7 +96,7 @@
       return { commit: line, parsed: { value: body }, message: 'wired a stateful toggle — ' + (dom === 'mouseenter' ? 'hover' : m[2].toLowerCase()) + ' the box, then again.' };
     }
 
-    BoxGame.mountTier({
+    return {
       mount: '#app', file: 'box.js', tier: 5,
       box: { color: 'grey', size: 150, opacity: 1 },
       ledger: ['// tier 5 — conditionals & state', 'box = "grey"'],
@@ -147,8 +135,5 @@
       ],
       outro: (ctx) =>
         '<h4>That’s conditionals &amp; state.</h4>The box now makes <b>decisions</b> — reading its own state and branching on it, the same line behaving differently as things change. A false test is allowed to do nothing; an <code>else</code> covers the other path; and inside a handler, a condition becomes a living <b>toggle</b>. That’s the difference between a script and a thing that <i>behaves</i>. Keep playing, or climb to <b>Tier 6: Time &amp; the loop</b>.'
-    });
-  })();
-  </script>
-</body>
-</html>
+    };
+});
