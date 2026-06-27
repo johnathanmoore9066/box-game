@@ -500,7 +500,12 @@ window.BoxGame = (function () {
       }
     };
     const setCaption = (text) => { captionEl.innerHTML = highlight(renameIdent(text, name), name); };
-    setCaption(cfg.caption ? renameIdent(cfg.caption, name) : (name + ' = "' + box.get('color') + '"'));
+    // prefer the last line the player actually wrote (carried from a prior tier) over the
+    // tier's hardcoded default, so the caption shows the box as they left it — not "grey".
+    const lastWritten = (savedLines && savedLines.length) ? savedLines[savedLines.length - 1] : null;
+    setCaption(lastWritten ? lastWritten
+             : cfg.caption ? renameIdent(cfg.caption, name)
+             : (name + ' = "' + box.get('color') + '"'));
     // every lesson/outro/reveal passes through here so `box` renders in the player's name.
     const showLesson = (html) => con.lesson(renameInCode(html, name));
 
