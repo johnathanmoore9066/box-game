@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THE BOX — Tier 8: classes</title>
+<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
+</head>
+<body>
+  <h2 class="sr-only">Tier 8 — classes. Write a blueprint: class Square { constructor(color) { this.color = color } }. Stamp out instances with new Square("tomato") — each new makes another square on the stage. Then inherit: class BigSquare extends Square { constructor(color) { super(color); this.size = 200 } } and new BigSquare("gold"). Old lines persist.</h2>
+  <div id="app"></div>
+
+  <script src="../engine.js"></script>
+  <script>
+  (function () {
+    // New grammar this tier: class / constructor / new / extends. This builds on Tier 7's
+    // objects (a class is a blueprint for them) and Tier 4's many-squares stage (each `new`
+    // adds an instance to the collection). Reuse: the registry (BoxGame.props) supplies the
+    // property types + ranges every instance is validated against, exactly like a box.
+    const RESERVED = ['box','function','return','if','else','for','while','new','class','extends','super','this','const','let','var','true','false','null','undefined'];
+    const ALLOWED = ['color', 'size', 'rounded', 'opacity', 'rotation'];   // glow isn't drawn on the small squares
+    const CLASSES = {};                               // name -> { params, stmts, parent }
+    const INSTANCES = [];                             // item objects fed to the Squares stage
+    const STATE = { count: 0, childCount: 0 };
+
+    // split on a top-level separator, leaving quotes / (…) / {…} / […] intact
+    function splitOn(s, sep) {
+      const out = []; let depth = 0, q = null, cur = '';
+      for (const ch of s) {
+        if (q) { cur += ch; if (ch === q) q = null; continue; }
+        if (ch === '"' || ch === "'") { q = ch; cur += ch; continue; }
+        if (ch === '(' || ch === '[' || ch === '{') { depth++; cur += ch; continue; }
+        if (ch === ')' || ch === ']' || ch === '}') { depth--; cur += ch; continue; }
+        if (ch === sep && depth === 0) { if (cur.trim()) out.push(cur.trim()); cur = ''; continue; }
+        cur += ch;
+      }
+      if (cur.trim()) out.push(cur.trim());
+      return out;
+    }
+
+    const parseClass = (line) => {
+      const m = line.match(/^class\s+([A-Za-z_$][\w$]*)(?:\s+extends\s+([A-Za-z_$][\w$]*))?\s*\{\s*([\s\S]*?)\s*\}$/);
+      return m ? { name: m[1], parent: m[2] || null, bodyRaw: m[3].trim() } : null;
+    };
+    const parseConstructor = (bodyRaw) => {
+      if (bodyRaw === '') return { params: [], stmts: [] };
+      const cm = bodyRaw.match(/^constructor\s*\(\s*([^)]*?)\s*\)\s*\{\s*([\s\S]*?)\s*\}$/);
+      if (!cm) return { error: 'A class body holds a constructor:  constructor(color) { this.color = color }' };
+      return { params: cm[1].trim() === '' ? [] : splitOn(cm[1], ','), stmts: splitOn(cm[2], ';') };
+    };
+
+    // clamp/validate a resolved value against the property's registry spec
+    function coerce(prop, value) {
+      const spec = BoxGame.props[prop];
+      if (spec.type === 'color') {
+        if (typeof value !== 'string' || !BoxGame.isColor(value)) return { error: 'this.' + prop + ' needs a color — like  "gold" , or the color you passed in' };
+        return { value: value };
+      }
+      if (spec.type === 'number') {
+        const n = Number(value);
+        if (isNaN(n)) return { error: 'this.' + prop + ' needs a number' };
+        return { value: spec.min != null ? Math.max(spec.min, Math.min(spec.max, n)) : n };
+      }
+      if (spec.type === 'boolean') {
+        if (typeof value !== 'boolean') return { error: 'this.' + prop + ' is true or false' };
+        return { value: value };
+      }
+      return { value: value };
+    }
+    // a value in  super(…)  : a parameter (from scope) or a literal
+    function resolveArgScoped(a, scope) {
+      a = a.trim();
+      if (scope && Object.prototype.hasOwnProperty.call(scope, a)) return { value: scope[a] };
+      const lit = BoxGame.parseAssignment('_ = ' + a);
+      if (lit.error || lit.type === 'identifier') return { error: 'Use a parameter or a value — a color in quotes, or a number:  new Square("tomato")' };
+      return { value: lit.value };
+    }
+    // a small  param/number  arithmetic eval, for constructors like  this.size = size + 40
+    function evalNum(expr, scope) {
+      const t = (tok) => { tok = tok.trim(); if (Object.prototype.hasOwnProperty.call(scope, tok)) return Number(scope[tok]); return /^-?\d+(\.\d+)?$/.test(tok) ? parseFloat(tok) : NaN; };
+      const m = expr.match(/^([\s\S]+?)\s*([+\-*/])\s*([\s\S]+)$/);
+      if (m) { const L = t(m[1]), R = t(m[3]); if (isNaN(L) || isNaN(R)) return NaN; return m[2] === '+' ? L + R : m[2] === '-' ? L - R : m[2] === '*' ? L * R : (R ? L / R : NaN); }
+      return t(expr);
+    }
+    function resolveValue(prop, rhs, scope) {
+      if (Object.prototype.hasOwnProperty.call(scope, rhs)) return coerce(prop, scope[rhs]);
+      const lit = BoxGame.parseAssignment('_ = ' + rhs);
+      if (!lit.error && lit.type !== 'identifier') return coerce(prop, lit.value);
+      if (BoxGame.props[prop].type === 'number') { const v = evalNum(rhs, scope); if (!isNaN(v)) return coerce(prop, v); }
+      const ps = Object.keys(scope).join(', ') || 'none';
+      return { error: 'I can’t resolve  ' + rhs + '  — use a parameter (' + ps + '), a value, or  param + number' };
+    }
+
+    // run a class (and its parent chain) into a flat instance state
+    function buildState(name, args) {
+      const cls = CLASSES[name];
+      if (!cls) return { error: 'No class named  ' + name };
+      let state = { color: 'grey', size: 84, rounded: false, opacity: 1, rotation: 0 };
+      const scope = {};
+      cls.params.forEach((pn, i) => { scope[pn] = args[i]; });
+      for (const st of cls.stmts) {
+        if (/^super\s*\(/.test(st)) {
+          if (!cls.parent) return { error: 'super() only works in a class that  extends  another.' };
+          const sm = st.match(/^super\s*\(\s*([\s\S]*?)\s*\)$/);
+          const toks = sm && sm[1].trim() !== '' ? splitOn(sm[1], ',') : [];
+          const sv = [];
+          for (const tk of toks) { const r = resolveArgScoped(tk, scope); if (r.error) return r; sv.push(r.value); }
+          const parent = buildState(cls.parent, sv);
+          if (parent.error) return parent;
+          state = parent.value;
+          continue;
+        }
+        const am = st.match(/^this\.([A-Za-z_$][\w$]*)\s*=\s*([\s\S]+)$/);
+        if (!am) return { error: 'In the constructor use  this.prop = …  (and  super(…)  if extending):  this.color = color' };
+        const prop = am[1], rhs = am[2].trim();
+        if (!ALLOWED.includes(prop)) return { error: 'No property  this.' + prop + '. Try color, size, rounded, opacity, rotation.' };
+        const r = resolveValue(prop, rhs, scope);
+        if (r.error) return r;
+        state[prop] = r.value;
+      }
+      return { value: state };
+    }
+    const toItem = (s) => ({ color: s.color, size: s.size, radius: s.rounded ? 80 : 12, opacity: s.opacity, rotation: s.rotation });
+
+    // shared validator for a class definition (used by both define steps)
+    function validateClassBody(c) {
+      const ctor = parseConstructor(c.bodyRaw);
+      if (ctor.error) return { error: ctor.error };
+      if (!c.parent && ctor.params.length === 0) return { error: 'Give the constructor an input so each one can differ:  constructor(color) { this.color = color }' };
+      let sets = 0;
+      for (const st of ctor.stmts) {
+        if (/^super\s*\(/.test(st)) continue;
+        const pm = st.match(/^this\.([A-Za-z_$][\w$]*)\s*=\s*[\s\S]+$/);
+        if (!pm) return { error: 'In the constructor, set properties on  this :  this.color = color' };
+        if (!ALLOWED.includes(pm[1])) return { error: 'No property  this.' + pm[1] + '. Try color, size, rounded, opacity, rotation.' };
+        sets++;
+      }
+      if (!c.parent && sets === 0) return { error: 'Have the constructor set at least one property:  this.color = color' };
+      return { ctor: ctor };
+    }
+
+    // ---- step 1: define a class with a constructor ----
+    function defineClass(p, ctx, raw) {
+      const line = String(raw).trim();
+      const c = parseClass(line);
+      if (!c) return { error: 'A class is a blueprint:  class Square { constructor(color) { this.color = color } }' };
+      if (c.parent) return { error: 'Start with a plain class first (no extends):  class Square { constructor(color) { this.color = color } }' };
+      if (RESERVED.includes(c.name)) return { error: '“' + c.name + '” is a keyword — pick a name like  Square' };
+      const v = validateClassBody(c);
+      if (v.error) return { error: v.error };
+      CLASSES[c.name] = { params: v.ctor.params, stmts: v.ctor.stmts, parent: null };
+      return { commit: line, message: 'blueprint saved — now stamp one out:  new ' + c.name + '("tomato")' };
+    }
+
+    // build one instance from a `new` line; returns the engine result
+    function doNew(line, ctx) {
+      const m = line.match(/^new\s+([A-Za-z_$][\w$]*)\s*\(\s*([\s\S]*?)\s*\)$/);
+      if (!m) return { error: 'Build one with  new :  new Square("tomato")' };
+      const cls = CLASSES[m[1]];
+      if (!cls) return { error: 'No class named  ' + m[1] + ' yet. Define one:  class Square { constructor(color) { this.color = color } }' };
+      const toks = m[2].trim() === '' ? [] : splitOn(m[2], ',');
+      const args = [];
+      for (const a of toks) { const r = resolveArgScoped(a, {}); if (r.error) return { error: r.error }; args.push(r.value); }
+      const built = buildState(m[1], args);
+      if (built.error) return { error: built.error };
+      INSTANCES.push(toItem(built.value));
+      ctx.squares.set(INSTANCES);
+      STATE.count++;
+      if (cls.parent) STATE.childCount++;
+      return { commit: line, parsed: { value: 'new#' + STATE.count }, message: INSTANCES.length + (INSTANCES.length === 1 ? ' instance' : ' instances') + ' on the stage — each built from a blueprint.' };
+    }
+
+    // ---- step 2: make instances with new ----
+    function newInstance(p, ctx, raw) { return doNew(String(raw).trim(), ctx); }
+
+    // ---- step 3: inheritance — extend a class, then build it ----
+    function inheritStep(p, ctx, raw) {
+      const line = String(raw).trim();
+      if (/^class\b/.test(line)) {
+        const c = parseClass(line);
+        if (!c) return { error: 'Extend a class:  class BigSquare extends Square { constructor(color) { super(color); this.size = 200 } }' };
+        if (!c.parent) return { error: 'For this step, make a class that  extends  another:  class BigSquare extends Square { … }' };
+        if (!CLASSES[c.parent]) return { error: 'No parent class  ' + c.parent + ' — extend one you’ve defined, like  Square.' };
+        if (RESERVED.includes(c.name) || CLASSES[c.name]) return { error: 'Pick a new class name, like  BigSquare.' };
+        const v = validateClassBody(c);
+        if (v.error) return { error: v.error };
+        CLASSES[c.name] = { params: v.ctor.params, stmts: v.ctor.stmts, parent: c.parent };
+        return { commit: line, parsed: {}, message: c.name + ' extends ' + c.parent + ' — it inherits everything, then adds its own. Now  new ' + c.name + '("gold")' };
+      }
+      return doNew(line, ctx);
+    }
+
+    BoxGame.mountTier({
+      mount: '#app', file: 'box.js', tier: 8,
+      collection: [],
+      ledger: ['// tier 8 — classes', '// one blueprint, a whole family of squares.'],
+      caption: 'class Square { … }',
+      placeholder: 'class Square { constructor(color) { this.color = color } }',
+      hints: [ { label: 'class Square { constructor(color) { this.color = color } }', insert: 'class Square { constructor(color) { this.color = color } }' } ],
+      teaser: { done: 'Tier 8 complete — classes &#10003;', next: 'next up &rarr; <b>Tier 9: Modules</b>' },
+      steps: [
+        { check: defineClass, lesson: () =>
+          '<h4>A blueprint for boxes.</h4>You made <i>one</i> object by hand in Tier 7. A <b>class</b> is a reusable <b>blueprint</b> — write it once, then stamp out as many objects as you like. Its <b>constructor</b> runs every time you build one, setting that object up from the inputs you pass:' +
+          '<div style="margin:7px 0 2px"><span class="ex">class Square { constructor(color) { this.color = color } }</span></div>' +
+          'Defining it builds nothing yet — it’s just the mold. Write the class.' },
+        { check: newInstance,
+          until: (ctx) => ctx.distinct('value') >= 2,
+          reveals: [
+            { when: 1,
+              hints: [ { label: 'new Square("gold")', insert: 'new Square("gold")' }, { label: 'new Square("skyblue")', insert: 'new Square("skyblue")' } ],
+              lesson: () =>
+                '<h4>&#128161; One blueprint, many instances.</h4>Every square came from the <i>same</i> <code>Square</code> class, yet each carries its <b>own</b> data — its own color. Define the shape once, reuse it forever. Stamp out a few more.' }
+          ],
+          lesson: () =>
+          '<h4>Stamp them out.</h4>To build an object from a class, use <code>new</code> — it runs the constructor and hands back a fresh <b>instance</b>. Each <code>new</code> makes another:' +
+          '<div style="margin:7px 0 2px"><span class="ex">new Square("tomato")</span></div>' +
+          'A square appears for each one. Build a couple — each a different color.' },
+        { check: inheritStep,
+          until: () => STATE.childCount >= 2,
+          reveals: [
+            { when: () => STATE.childCount >= 1,
+              hints: [ { label: 'new BigSquare("teal")', insert: 'new BigSquare("teal")' }, { label: 'new BigSquare("violet")', insert: 'new BigSquare("violet")' } ],
+              lesson: () =>
+                '<h4>&#128161; A BigSquare is also a Square.</h4>It inherited <code>this.color = color</code> from <code>Square</code> — you never rewrote it — and added its own size. That chain is <b>inheritance</b>: specialize without repeating yourself. Build another big one.' }
+          ],
+          lesson: () =>
+          '<h4>Build on a blueprint.</h4>The real power: a class can <b>extend</b> another — inherit everything it does, then add or change. <code>super(...)</code> runs the parent’s constructor first; then you specialize:' +
+          '<div style="margin:7px 0 2px"><span class="ex">class BigSquare extends Square { constructor(color) { super(color); this.size = 200 } }</span></div>' +
+          'Define it, then build one — <code>new BigSquare("gold")</code>. It’s a Square (it gets the color) <i>and</i> bigger.' }
+      ],
+      outro: (ctx) =>
+        '<h4>That’s classes.</h4>A <b>class</b> is a blueprint; <code>new</code> stamps out <b>instances</b> that share it but carry their own data; and <code>extends</code> lets one blueprint <b>build on</b> another. You went from a single hand-made object to a whole family — the leap a real codebase makes when it stops copying and starts <i>modeling</i>. Keep playing, or climb to <b>Tier 9: Modules</b>.'
+    });
+  })();
+  </script>
+</body>
+</html>

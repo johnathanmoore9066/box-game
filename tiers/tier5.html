@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THE BOX — Tier 5: conditionals &amp; state</title>
+<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
+</head>
+<body>
+  <h2 class="sr-only">Tier 5 — conditionals and state. Branch on the box's own state: if (box.size > 100) { box.color = "tomato" }, then if/else where exactly one path runs, then a click handler that re-checks the box each time to toggle it. Old lines persist.</h2>
+  <div id="app"></div>
+
+  <script src="../engine.js"></script>
+  <script>
+  (function () {
+    // New grammar this tier: if / else and comparisons. The box's own properties are the
+    // "state" a condition reads. Reuse continues: branch bodies are assignments validated
+    // and applied by BoxGame.assignCheck; only the condition needs a tiny evaluator that
+    // reads live box state (and, in the toggle, re-reads it on every click).
+    const esc = (s) => String(s).replace(/[$]/g, '\\$&');
+    const EVENTS = { click: 'click', hover: 'mouseenter', dblclick: 'dblclick', doubleclick: 'dblclick' };
+    const LISTEN = {};
+    const CMP = { '>': (a, b) => a > b, '<': (a, b) => a < b, '>=': (a, b) => a >= b, '<=': (a, b) => a <= b,
+                  '===': (a, b) => a === b, '==': (a, b) => a == b, '!==': (a, b) => a !== b, '!=': (a, b) => a != b };
+
+    const readProp = (box, prop) => prop === 'rounded' ? (box.get('radius') >= 40) : box.get(prop);
+
+    const runAssign = (line, ctx) => {
+      const parsed = BoxGame.parseAssignment(line);
+      if (parsed.error) return { error: parsed.error };
+      return (parsed.prop ? BoxGame.assignCheck() : BoxGame.assignCheck({ bare: 'color' }))(parsed, ctx);
+    };
+
+    // one side of a comparison: box.prop (a live read), or a literal value
+    function side(tok, ctx) {
+      tok = tok.trim();
+      const pm = tok.match(new RegExp('^' + esc(ctx.name) + '\\.([A-Za-z_$][\\w$]*)$'));
+      if (pm) {
+        if (!BoxGame.props[pm[1]]) return { error: 'No property  ' + tok };
+        return { value: readProp(ctx.box, pm[1]) };
+      }
+      if (tok === ctx.name) return { error: 'Test a property of the box, like  ' + ctx.name + '.size' };
+      const a = BoxGame.parseAssignment('_ = ' + tok);
+      if (a.error) return { error: 'I can’t read  ' + tok + '  in the condition' };
+      return { value: a.value };
+    }
+
+    function evalCond(cond, ctx) {
+      cond = cond.trim();
+      const m = cond.match(/^(.+?)\s*(===|!==|==|!=|>=|<=|>|<)\s*(.+)$/);
+      if (m) {
+        const L = side(m[1], ctx); if (L.error) return L;
+        const R = side(m[3], ctx); if (R.error) return R;
+        return { value: CMP[m[2]](L.value, R.value) };
+      }
+      let c = cond, neg = false;
+      if (c[0] === '!') { neg = true; c = c.slice(1).trim(); }
+      const s = side(c, ctx);
+      if (s.error) return { error: 'A condition is a test, like  ' + ctx.name + '.size > 100  or  ' + ctx.name + '.rounded' };
+      return { value: neg ? !s.value : !!s.value };
+    }
+
+    // if (cond) { then } [ else { else } ]  — single-assignment branches
+    const parseIf = (s) => {
+      const m = s.match(/^if\s*\(\s*([^)]*?)\s*\)\s*\{\s*([^{}]*?)\s*\}(?:\s*else\s*\{\s*([^{}]*?)\s*\})?$/);
+      return m ? { cond: m[1], then: m[2].trim(), els: m[3] != null ? m[3].trim() : null } : null;
+    };
+
+    // ---- steps 1 & 2: if, and if/else ----
+    function ifCheck(opts) {
+      opts = opts || {};
+      return function (p, ctx, raw) {
+        const nm = ctx.name, iff = parseIf(String(raw).trim());
+        if (!iff) return { error: 'An if looks like:  if (' + nm + '.size > 100) { ' + nm + '.color = "tomato" }' };
+        if (opts.needElse && iff.els == null) return { error: 'This step wants both paths — add an else:  if (…) { … } else { … }' };
+        const tRes = runAssign(iff.then, ctx);
+        if (tRes.error) return { error: 'In the { } put an action — ' + tRes.error };
+        let eRes = null;
+        if (iff.els != null) { eRes = runAssign(iff.els, ctx); if (eRes.error) return { error: 'In the else { } put an action — ' + eRes.error }; }
+        const cv = evalCond(iff.cond, ctx);
+        if (cv.error) return { error: cv.error };
+        const chosen = cv.value ? tRes : eRes;
+        return {
+          commit: String(raw).trim(),
+          apply: chosen ? (b) => chosen.apply(b) : null,
+          parsed: { value: iff.cond },
+          message: cv.value ? 'true → the “then” ran.' : (iff.els ? 'false → the “else” ran.' : 'false → nothing ran (a condition is allowed to do nothing).')
+        };
+      };
+    }
+
+    // ---- step 3: a stateful toggle wired to a click ----
+    function toggleCheck(p, ctx, raw) {
+      const nm = ctx.name, line = String(raw).trim();
+      const m = line.match(/^on\(\s*(["'])(\w+)\1\s*,\s*\(\s*\)\s*=>\s*\{\s*([\s\S]+?)\s*\}\s*\)$/);
+      if (!m) return { error: 'Wrap an if in a click handler:  on("click", () => { if (' + nm + '.size > 120) { ' + nm + '.size = 80 } else { ' + nm + '.size = 160 } })' };
+      const dom = EVENTS[m[2].toLowerCase()], body = m[3].trim();
+      if (!dom) return { error: 'Try  click ,  hover , or  dblclick .' };
+      const iff = parseIf(body);
+      if (!iff || iff.els == null) return { error: 'The handler should branch both ways:  () => { if (' + nm + '.size > 120) { ' + nm + '.size = 80 } else { ' + nm + '.size = 160 } }' };
+      const tRes = runAssign(iff.then, ctx); if (tRes.error) return { error: tRes.error };
+      const eRes = runAssign(iff.els, ctx); if (eRes.error) return { error: eRes.error };
+      const el = ctx.stage.el;
+      if (LISTEN[dom]) el.removeEventListener(dom, LISTEN[dom]);
+      const fire = () => { const cv = evalCond(iff.cond, ctx); if (cv.error) return; const r = cv.value ? tRes : eRes; r.apply(ctx.box); ctx.stage.pop(); };
+      LISTEN[dom] = fire; el.addEventListener(dom, fire);
+      if (dom === 'click' || dom === 'dblclick') el.style.cursor = 'pointer';
+      return { commit: line, parsed: { value: body }, message: 'wired a stateful toggle — ' + (dom === 'mouseenter' ? 'hover' : m[2].toLowerCase()) + ' the box, then again.' };
+    }
+
+    BoxGame.mountTier({
+      mount: '#app', file: 'box.js', tier: 5,
+      box: { color: 'grey', size: 150, opacity: 1 },
+      ledger: ['// tier 5 — conditionals & state', 'box = "grey"'],
+      placeholder: 'if (box.size > 100) { box.color = "tomato" }',
+      hints: [ { label: 'if (box.size > 100) { box.color = "tomato" }', insert: 'if (box.size > 100) { box.color = "tomato" }' } ],
+      teaser: { done: 'Tier 5 complete — conditionals &amp; state &#10003;', next: 'next up &rarr; <b>Tier 6: Time &amp; the loop</b>' },
+      steps: [
+        { check: ifCheck(),
+          until: (ctx) => ctx.distinct('value') >= 2,
+          reveals: [
+            { when: 1,
+              hints: [ { label: 'if (box.size > 500) { box.color = "blue" }', insert: 'if (box.size > 500) { box.color = "blue" }' }, { label: 'if (box.opacity === 1) { box.rounded = true }', insert: 'if (box.opacity === 1) { box.rounded = true }' } ],
+              lesson: () =>
+                '<h4>&#128161; A false test does nothing.</h4>Try a condition that <i>isn’t</i> true — <code>box.size &gt; 500</code> — and the box just… stays. The <code>{ }</code> only runs when the test passes. That gate is the whole point of <code>if</code>. Try one of each.' }
+          ],
+          lesson: () =>
+          '<h4>Let the box decide.</h4>Until now every line just <i>happened</i>. <b>if</b> runs its block only <b>when a test is true</b>. The test reads the box’s own <b>state</b> — its current size, color, opacity:' +
+          '<div style="margin:7px 0 2px"><span class="ex">if (box.size > 100) { box.color = "tomato" }</span></div>' +
+          'The box starts at size 150, so this one passes. Write it (compare with <code>&gt;</code>, <code>&lt;</code>, <code>===</code>).' },
+        { check: ifCheck({ needElse: true }),
+          until: (ctx) => ctx.distinct('value') >= 2,
+          reveals: [
+            { when: 1,
+              hints: [ { label: 'if (box.rounded) { box.glow = 30 } else { box.glow = 0 }', insert: 'if (box.rounded) { box.glow = 30 } else { box.glow = 0 }' } ],
+              lesson: () =>
+                '<h4>&#128161; Exactly one path runs.</h4>Never both, never neither — <code>if</code> takes the <code>then</code>, otherwise the <code>else</code>. Flip the test around and the other branch fires. Write another.' }
+          ],
+          lesson: () =>
+          '<h4>Two paths, one taken.</h4>Add an <b>else</b> for when the test fails — now the box always does <i>something</i>, just a different thing each way:' +
+          '<div style="margin:7px 0 2px"><span class="ex">if (box.opacity < 0.5) { box.color = "blue" } else { box.color = "gold" }</span></div>' +
+          'Opacity is 1 right now, so the <code>else</code> wins. Write an if/else.' },
+        { check: toggleCheck, lesson: () =>
+          '<h4>State you can flip.</h4>Here’s the payoff: put a branch <i>inside a click handler</i>. Each click re-checks the box’s <b>current</b> size and does the opposite — that’s a <b>toggle</b>, and the box’s size <i>is</i> the state it remembers:' +
+          '<div style="margin:7px 0 2px"><span class="ex">on("click", () => { if (box.size > 120) { box.size = 80 } else { box.size = 160 } })</span></div>' +
+          'Wire it, then <b>click the box</b> a few times — grow, shrink, grow.' }
+      ],
+      outro: (ctx) =>
+        '<h4>That’s conditionals &amp; state.</h4>The box now makes <b>decisions</b> — reading its own state and branching on it, the same line behaving differently as things change. A false test is allowed to do nothing; an <code>else</code> covers the other path; and inside a handler, a condition becomes a living <b>toggle</b>. That’s the difference between a script and a thing that <i>behaves</i>. Keep playing, or climb to <b>Tier 6: Time &amp; the loop</b>.'
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THE BOX — Tier 7: objects &amp; this</title>
+<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
+</head>
+<body>
+  <h2 class="sr-only">Tier 7 — objects and this. Build your own object: const ball = { color: "tomato", size: 120, rounded: true } gives the box that shape. Store a function on it (a method) and call it: ball.grow = function() { ball.size = 220 } then ball.grow(). Then use this to read the object's own live state: ball.pulse = function() { this.size = this.size + 30 } and call it a few times to watch it grow. Old lines persist.</h2>
+  <div id="app"></div>
+
+  <script src="../engine.js"></script>
+  <script>
+  (function () {
+    // New grammar this tier: object literals, methods, and `this`. The big reveal is that
+    // the box has *been* an object all along (box.color, box.size were object properties).
+    // Reuse keeps it small: each `key: value` pair is validated by BoxGame.assignCheck just
+    // like a box assignment, and a method body is one more assignment the engine applies —
+    // mirrored onto the live box, with `this` reading the object's own current state.
+    const RESERVED = ['box','function','return','if','else','for','while','new','class','const','let','var','this','true','false','null','undefined'];
+    let OBJ = null;                                   // { name, state, methods }
+    const STATE = { calls: 0, base: 0, lastStep: -1 };
+    const tick = (ctx) => { if (ctx.step !== STATE.lastStep) { STATE.lastStep = ctx.step; STATE.base = STATE.calls; } };
+    const callsSince = () => STATE.calls - STATE.base;
+
+    // split top-level commas only (so quotes / rgb(…) / nested braces stay intact)
+    function splitTop(s) {
+      const out = []; let depth = 0, q = null, cur = '';
+      for (const ch of s) {
+        if (q) { cur += ch; if (ch === q) q = null; continue; }
+        if (ch === '"' || ch === "'") { q = ch; cur += ch; continue; }
+        if (ch === '(' || ch === '[' || ch === '{') { depth++; cur += ch; continue; }
+        if (ch === ')' || ch === ']' || ch === '}') { depth--; cur += ch; continue; }
+        if (ch === ',' && depth === 0) { out.push(cur.trim()); cur = ''; continue; }
+        cur += ch;
+      }
+      if (cur.trim() !== '') out.push(cur.trim());
+      return out;
+    }
+
+    // mirror a property change onto BOTH the object's state and the live box (reusing the
+    // registry's apply, which knows rounded → radius, ranges, etc.).
+    function applyProp(prop, value, ctx) {
+      const spec = BoxGame.props[prop];
+      if (spec) spec.apply(ctx.box, value);
+      OBJ.state[prop] = value;
+    }
+
+    // a term in a `this`-expr: this.prop / obj.prop (a live read of object state) or a number
+    function term(tok) {
+      tok = tok.trim();
+      const pm = tok.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/);
+      if (pm) {
+        if (pm[1] !== 'this' && (!OBJ || pm[1] !== OBJ.name)) return { error: 'Read the object with  this.' + pm[2] };
+        if (!BoxGame.props[pm[2]]) return { error: 'No property  ' + pm[2] };
+        const v = Number(OBJ.state[pm[2]]);
+        return { value: isNaN(v) ? 0 : v };
+      }
+      if (/^-?\d+(\.\d+)?$/.test(tok)) return { value: parseFloat(tok) };
+      return { error: 'Use  this.size  and numbers' };
+    }
+    function evalExpr(expr) {
+      expr = String(expr).trim();
+      const m = expr.match(/^([\s\S]+?)\s*([+\-*/])\s*([\s\S]+)$/);
+      if (m) {
+        const L = term(m[1]); if (L.error) return L;
+        const R = term(m[3]); if (R.error) return R;
+        const o = m[2];
+        return { value: o === '+' ? L.value + R.value : o === '-' ? L.value - R.value : o === '*' ? L.value * R.value : (R.value ? L.value / R.value : NaN) };
+      }
+      return term(expr);
+    }
+
+    // a method body is one assignment:  this.prop = <expr|literal>  (or obj.prop = …)
+    function methodBody(body, ctx) {
+      const nm = OBJ.name;
+      const m = body.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\s*=\s*([\s\S]+)$/);
+      if (!m) return { error: 'A method body changes the object — like  this.size = this.size + 30  or  ' + nm + '.color = "gold"' };
+      const tgt = m[1], prop = m[2], rhs = m[3].trim();
+      if (tgt !== 'this' && tgt !== nm) return { error: 'Point at the object — use  this.' + prop + '  (or  ' + nm + '.' + prop + ')' };
+      const spec = BoxGame.props[prop];
+      if (!spec) return { error: 'No property  ' + prop + '. Try color, size, rounded, opacity, rotation, glow.' };
+      const lit = BoxGame.parseAssignment('_ = ' + rhs);
+      const isExpr = !!lit.error || lit.type === 'identifier';
+      if (isExpr) {
+        if (spec.type !== 'number') return { error: nm + '.' + prop + ' is a ' + spec.type + ' — set it directly, like  ' + (spec.type === 'color' ? 'this.' + prop + ' = "gold"' : 'this.' + prop + ' = true') };
+        const probe = evalExpr(rhs); if (probe.error) return { error: probe.error };
+        return { run: () => { const r = evalExpr(rhs); if (r.error || isNaN(r.value)) return; let v = r.value; if (spec.min != null) v = Math.max(spec.min, Math.min(spec.max, v)); applyProp(prop, v, ctx); } };
+      }
+      const fakeP = { target: ctx.name, prop: prop, value: lit.value, type: lit.type, rawValue: lit.rawValue };
+      const res = BoxGame.assignCheck()(fakeP, ctx);
+      if (res.error) return { error: res.error };
+      return { run: () => { applyProp(prop, lit.value, ctx); } };
+    }
+
+    // ---- step 1: build an object literal ----
+    function makeObject(p, ctx, raw) {
+      const line = String(raw).trim();
+      const m = line.match(/^(?:const\s+|let\s+|var\s+)?([A-Za-z_$][\w$]*)\s*=\s*\{\s*([\s\S]*?)\s*\}$/);
+      if (!m) return { error: 'An object bundles named values in braces:  const ball = { color: "tomato", size: 120 }' };
+      const name = m[1], inner = m[2].trim();
+      if (name === ctx.name) return { error: 'That name is your box. Give the object its own name, like  ball' };
+      if (RESERVED.includes(name)) return { error: '“' + name + '” is a keyword — pick a plain name like  ball' };
+      if (inner === '') return { error: 'Put a couple of properties inside:  { color: "tomato", size: 120 }' };
+      const pairs = splitTop(inner);
+      if (pairs.length < 2) return { error: 'Give it at least two properties:  { color: "tomato", size: 120 }' };
+      const state = {};
+      for (const pr of pairs) {
+        const km = pr.match(/^([A-Za-z_$][\w$]*)\s*:\s*([\s\S]+)$/);
+        if (!km) return { error: 'Each property is  name: value  — like  color: "tomato"' };
+        const key = km[1], valRaw = km[2].trim();
+        if (!BoxGame.props[key]) return { error: 'The box has no property  ' + key + '. Try color, size, rounded, opacity, rotation, glow.' };
+        const lit = BoxGame.parseAssignment('_ = ' + valRaw);
+        const fakeP = { target: ctx.name, prop: key, value: lit.value, type: lit.type, rawValue: lit.rawValue };
+        const res = BoxGame.assignCheck()(fakeP, ctx);
+        if (res.error) return { error: res.error };
+        state[key] = lit.value;
+      }
+      OBJ = { name: name, state: { color: 'grey', size: 150, rounded: false, opacity: 1, rotation: 0, glow: 0 }, methods: {} };
+      for (const key in state) applyProp(key, state[key], ctx);
+      ctx.stage.pop();
+      return { commit: line, parsed: { value: pairs.length }, message: 'object built — the box took its shape.' };
+    }
+
+    // ---- steps 2 & 3: a method (define + call), then `this` ----
+    function methodCheck(opts) {
+      opts = opts || {};
+      return function (p, ctx, raw) {
+        tick(ctx);
+        if (!OBJ) return { error: 'Make an object first:  const ball = { color: "tomato", size: 120 }' };
+        const nm = OBJ.name, line = String(raw).trim();
+        let dm = line.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\s*=\s*function\s*\(\s*\)\s*\{\s*([\s\S]*?)\s*\}$/)
+              || line.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\s*=\s*\(\s*\)\s*=>\s*\{\s*([\s\S]*?)\s*\}$/)
+              || line.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\s*=\s*\(\s*\)\s*=>\s*([\s\S]+)$/);
+        if (dm) {
+          if (dm[1] !== nm) return { error: 'Add the method to your object:  ' + nm + '.' + dm[2] + ' = function() { … }' };
+          const body = dm[3].trim(), usesThis = /\bthis\b/.test(body);
+          if (opts.needThis && !usesThis) return { error: 'For this one, use  this  inside:  ' + nm + '.' + dm[2] + ' = function() { this.size = this.size + 30 }' };
+          const mb = methodBody(body, ctx);
+          if (mb.error) return { error: mb.error };
+          OBJ.methods[dm[2]] = { run: mb.run, usesThis: usesThis };
+          return { commit: line, parsed: {}, message: 'method  ' + dm[2] + '  saved on  ' + nm + ' — now call it:  ' + nm + '.' + dm[2] + '()' };
+        }
+        const cm = line.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\(\s*\)$/);
+        if (cm) {
+          if (cm[1] !== nm) return { error: 'Call a method on your object:  ' + nm + '.grow()' };
+          const meth = OBJ.methods[cm[2]];
+          if (!meth) return { error: 'No method  ' + cm[2] + '  yet — define it first:  ' + nm + '.' + cm[2] + ' = function() { … }' };
+          if (opts.needThis && !meth.usesThis) return { error: 'Call the method that uses  this  — define  ' + nm + '.pulse  first, then  ' + nm + '.pulse()' };
+          meth.run();
+          ctx.stage.pop();
+          STATE.calls++;
+          return { commit: line, parsed: { value: cm[2] + '#' + STATE.calls }, message: 'called — the box ran  ' + nm + '.' + cm[2] + '().' };
+        }
+        return { error: opts.needThis
+          ? 'Define a method that uses  this , then call it:  ' + nm + '.pulse()'
+          : 'Add a method, then call it:  ' + nm + '.grow = function() { ' + nm + '.size = 220 }  then  ' + nm + '.grow()' };
+      };
+    }
+
+    BoxGame.mountTier({
+      mount: '#app', file: 'box.js', tier: 7,
+      box: { color: 'grey', size: 150 },
+      ledger: ['// tier 7 — objects & this', 'box = "grey"'],
+      placeholder: 'const ball = { color: "tomato", size: 120, rounded: true }',
+      hints: [ { label: 'const ball = { color: "tomato", size: 120, rounded: true }', insert: 'const ball = { color: "tomato", size: 120, rounded: true }' } ],
+      teaser: { done: 'Tier 7 complete — objects &amp; this &#10003;', next: 'next up &rarr; <b>Tier 8: Classes</b>' },
+      steps: [
+        { check: makeObject, lesson: () =>
+          '<h4>One name, many values.</h4>You’ve been writing <code>box.color</code>, <code>box.size</code> — reaching into the box with a dot. Here’s the secret: <i>the box has been an <b>object</b> all along</i> — a bundle of named values. Now build your own. An <b>object literal</b> lists <code>name: value</code> pairs in braces:' +
+          '<div style="margin:7px 0 2px"><span class="ex">const ball = { color: "tomato", size: 120, rounded: true }</span></div>' +
+          'Make one (give it its own name) — the box takes its shape.' },
+        { check: methodCheck(),
+          until: () => callsSince() >= 1,
+          lesson: () =>
+          '<h4>Objects can hold actions, too.</h4>A value on an object can be a <b>function</b> — then it’s called a <b>method</b>. Store one, then run it with <code>()</code>:' +
+          '<div style="margin:7px 0 2px"><span class="ex">ball.grow = function() { ball.size = 220 }</span></div>' +
+          'Defining it changes nothing yet (just like Tier 2 — a recipe isn’t a meal). Add the method, then <b>call it</b>:' +
+          '<div style="margin:7px 0 2px"><span class="ex">ball.grow()</span></div>' },
+        { check: methodCheck({ needThis: true }),
+          until: () => callsSince() >= 2,
+          reveals: [
+            { when: () => callsSince() >= 1,
+              hints: [ { label: 'ball.pulse()', insert: 'ball.pulse()' } ],
+              lesson: () =>
+                '<h4>&#128161; this is the live object.</h4>Every call re-reads <code>this.size</code>, so the <i>same line</i> does something new each time — the box grows by 30 from wherever it is. That’s the gap between a fixed value and a method working with real state. Call it again. And because it says <code>this</code>, you could drop this exact method on <i>any</i> object and it’d just work.' }
+          ],
+          lesson: () =>
+          '<h4>this — whichever object it runs on.</h4>Your last method hard-coded <code>ball</code> inside it. But a method can say <code>this</code> to mean “the object I belong to” — so it isn’t tied to one name, and it can read its <i>own</i> current state:' +
+          '<div style="margin:7px 0 2px"><span class="ex">ball.pulse = function() { this.size = this.size + 30 }</span></div>' +
+          '<code>this.size</code> reads where the box is <i>now</i> and adds 30. Define it, then <b>call it a few times</b> — it grows each time.' }
+      ],
+      outro: (ctx) =>
+        '<h4>That’s objects, methods &amp; this.</h4>You bundled values under one name, gave that bundle <b>behavior</b>, and used <code>this</code> so a method works with its own live state — the very shape the box itself has had all along. Objects are how real programs keep data and the actions on it <i>together</i>. Every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). Keep playing, or climb to <b>Tier 8: Classes</b>.'
+    });
+  })();
+  </script>
+</body>
+</html>

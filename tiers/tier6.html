@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THE BOX — Tier 6: time &amp; the loop</title>
+<style> html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);} </style>
+</head>
+<body>
+  <h2 class="sr-only">Tier 6 — time and the loop. Make the box move on its own: setTimeout(() =&gt; box = "tomato", 800) runs once after a delay, setInterval(() =&gt; box.rotation = box.rotation + 20, 120) runs over and over so the box spins, and loop(() =&gt; box.rotation = box.rotation + 2) runs every frame for smooth animation. Old lines persist.</h2>
+  <div id="app"></div>
+
+  <script src="../engine.js"></script>
+  <script>
+  (function () {
+    // New grammar this tier: setTimeout / setInterval and a per-frame loop (rAF).
+    // The reuse that keeps it small: a delayed body is just an assignment the engine
+    // already validates (BoxGame.assignCheck via runAssign); an animated body is
+    // "box.prop = <expr>" where the expr reads the box's *live* value and nudges it,
+    // evaluated fresh on every tick — so motion is just one assignment, repeated.
+    const esc = (s) => String(s).replace(/[$]/g, '\\$&');
+    const TIMERS = { timeout: null, interval: null, loop: null };
+    const clearTimer = (kind) => {
+      if (kind === 'interval' && TIMERS.interval) { clearInterval(TIMERS.interval); TIMERS.interval = null; }
+      if (kind === 'timeout'  && TIMERS.timeout)  { clearTimeout(TIMERS.timeout);   TIMERS.timeout = null; }
+      if (kind === 'loop'     && TIMERS.loop)     { cancelAnimationFrame(TIMERS.loop); TIMERS.loop = null; }
+    };
+
+    // a plain assignment, run through the engine's validation + apply (reused).
+    const runAssign = (line, ctx) => {
+      const parsed = BoxGame.parseAssignment(line);
+      if (parsed.error) return { error: parsed.error };
+      return (parsed.prop ? BoxGame.assignCheck() : BoxGame.assignCheck({ bare: 'color' }))(parsed, ctx);
+    };
+
+    // a term in an animation expr: box.prop (a *live* read) or a number.
+    function term(tok, ctx) {
+      tok = tok.trim();
+      const pm = tok.match(new RegExp('^' + esc(ctx.name) + '\\.([A-Za-z_$][\\w$]*)$'));
+      if (pm) {
+        if (!BoxGame.props[pm[1]]) return { error: 'No property  ' + ctx.name + '.' + pm[1] };
+        const v = Number(ctx.box.get(pm[1]));
+        return { value: isNaN(v) ? 0 : v };
+      }
+      if (/^-?\d+(\.\d+)?$/.test(tok)) return { value: parseFloat(tok) };
+      if (tok === ctx.name) return { error: 'Reach into a property with a dot:  ' + ctx.name + '.rotation' };
+      return { error: 'I can’t read  ' + tok + '  — use  ' + ctx.name + '.rotation  and numbers' };
+    }
+    // expr is a single term, or  term OP term  (enough for  box.rotation + 20 ).
+    function evalExpr(expr, ctx) {
+      expr = String(expr).trim();
+      const m = expr.match(/^([\s\S]+?)\s*([+\-*/])\s*([\s\S]+)$/);
+      if (m) {
+        const L = term(m[1], ctx); if (L.error) return L;
+        const R = term(m[3], ctx); if (R.error) return R;
+        const o = m[2];
+        return { value: o === '+' ? L.value + R.value : o === '-' ? L.value - R.value : o === '*' ? L.value * R.value : (R.value ? L.value / R.value : NaN) };
+      }
+      return term(expr, ctx);
+    }
+
+    // an animation body:  box.<numberProp> = <expr> . Returns a tick() that, each call,
+    // re-reads state, recomputes, and applies (rotation runs free so it can keep spinning;
+    // the bounded props clamp to their range).
+    function tickBody(body, ctx) {
+      const nm = ctx.name;
+      const m = body.match(new RegExp('^' + esc(nm) + '\\.([A-Za-z_$][\\w$]*)\\s*=\\s*([\\s\\S]+)$'));
+      if (!m) return { error: 'Animate by nudging a number every time — read the current value and add to it:  ' + nm + '.rotation = ' + nm + '.rotation + 20' };
+      const prop = m[1], expr = m[2].trim(), spec = BoxGame.props[prop];
+      if (!spec) return { error: 'No property  ' + nm + '.' + prop + '. Try rotation, size, opacity, or glow.' };
+      if (spec.type !== 'number') return { error: 'Animate a number — rotation, size, opacity, glow:  ' + nm + '.rotation = ' + nm + '.rotation + 20' };
+      const probe = evalExpr(expr, ctx);
+      if (probe.error) return { error: probe.error };
+      const tick = () => {
+        const r = evalExpr(expr, ctx); if (r.error || typeof r.value !== 'number' || isNaN(r.value)) return;
+        let v = r.value;
+        if (prop !== 'rotation' && spec.min != null) v = Math.max(spec.min, Math.min(spec.max, v));
+        ctx.box.set(prop, v);
+      };
+      return { prop: prop, expr: expr, tick: tick };
+    }
+
+    // ---- step 1: setTimeout — run once, later ----
+    function timeoutCheck(p, ctx, raw) {
+      const nm = ctx.name, line = String(raw).trim();
+      const m = line.match(/^setTimeout\(\s*\(\s*\)\s*=>\s*([\s\S]+?)\s*,\s*(\d+)\s*\)$/);
+      if (!m) return { error: 'Run something later:  setTimeout(() => ' + nm + ' = "tomato", 800)' };
+      const body = m[1].trim(), ms = parseInt(m[2], 10);
+      if (ms < 100)  return { error: 'Make the wait long enough to notice — try 600 or 1000 (ms).' };
+      if (ms > 6000) return { error: 'Keep it to a few seconds so you don’t wait forever — try 1500.' };
+      const res = runAssign(body, ctx);
+      if (res.error) return { error: 'After the delay it should do something to the box — ' + res.error };
+      clearTimer('timeout');
+      TIMERS.timeout = setTimeout(() => { if (res.apply) res.apply(ctx.box); ctx.stage.pop(); }, ms);
+      return { commit: line, parsed: { value: body }, message: 'set — watch the box change in ' + (ms / 1000) + 's…' };
+    }
+
+    // ---- step 2: setInterval — run again and again (motion) ----
+    function intervalCheck(p, ctx, raw) {
+      const nm = ctx.name, line = String(raw).trim();
+      const m = line.match(/^setInterval\(\s*\(\s*\)\s*=>\s*([\s\S]+?)\s*,\s*(\d+)\s*\)$/);
+      if (!m) return { error: 'A repeating timer:  setInterval(() => ' + nm + '.rotation = ' + nm + '.rotation + 20, 120)' };
+      const body = m[1].trim(), ms = parseInt(m[2], 10);
+      if (ms < 30)   return { error: 'Give each tick a little room — try 60ms or more.' };
+      if (ms > 4000) return { error: 'That’s a long gap between ticks — try under 1000ms so you can see it move.' };
+      const tb = tickBody(body, ctx);
+      if (tb.error) return { error: tb.error };
+      clearTimer('interval');
+      TIMERS.interval = setInterval(tb.tick, ms);
+      return { commit: line, parsed: { value: body }, message: 'ticking every ' + ms + 'ms — the box is moving on its own.' };
+    }
+
+    // ---- step 3: the frame loop — run every frame (smooth) ----
+    function loopCheck(p, ctx, raw) {
+      const nm = ctx.name, line = String(raw).trim();
+      const m = line.match(/^(?:loop|requestAnimationFrame)\(\s*\(\s*\)\s*=>\s*([\s\S]+?)\s*\)$/);
+      if (!m) return { error: 'The frame loop runs every frame:  loop(() => ' + nm + '.rotation = ' + nm + '.rotation + 2)' };
+      const tb = tickBody(m[1].trim(), ctx);
+      if (tb.error) return { error: tb.error };
+      clearTimer('loop'); clearTimer('interval');      // the loop takes over from the chunky timer
+      ctx.stage.el.style.transition = 'none';          // crisp, per-frame — no easing lag
+      const frame = () => { tb.tick(); TIMERS.loop = requestAnimationFrame(frame); };
+      TIMERS.loop = requestAnimationFrame(frame);
+      return { commit: line, parsed: { value: tb.expr ? (tb.prop + ' = ' + tb.expr) : line }, message: 'frame loop running — ' + nm + ' is animating at ~60fps.' };
+    }
+
+    BoxGame.mountTier({
+      mount: '#app', file: 'box.js', tier: 6,
+      box: { color: 'grey', size: 150, rotation: 0, glow: 0 },
+      ledger: ['// tier 6 — time & the loop', 'box = "grey"'],
+      placeholder: 'setTimeout(() => box = "tomato", 800)',
+      hints: [ { label: 'setTimeout(() => box = "tomato", 800)', insert: 'setTimeout(() => box = "tomato", 800)' } ],
+      teaser: { done: 'Tier 6 complete — time &amp; the loop &#10003;', next: 'next up &rarr; <b>Tier 7: Objects &amp; this</b>' },
+      steps: [
+        { check: timeoutCheck, lesson: () =>
+          '<h4>Code that runs later.</h4>Every line so far ran the <i>instant</i> you pressed enter. <b>setTimeout</b> holds an action and runs it <b>after a delay</b> — you hand it a function and a number of milliseconds to wait:' +
+          '<div style="margin:7px 0 2px"><span class="ex">setTimeout(() => box = "tomato", 800)</span></div>' +
+          'Write it, then <i>wait</i> — the box changes on its own, a beat later. Nothing else happens until then.' },
+        { check: intervalCheck,
+          until: (ctx) => ctx.distinct('value') >= 2,
+          reveals: [
+            { when: 1,
+              hints: [ { label: 'setInterval(() => box.rotation = box.rotation - 30, 100)', insert: 'setInterval(() => box.rotation = box.rotation - 30, 100)' },
+                       { label: 'setInterval(() => box.glow = box.glow + 6, 120)', insert: 'setInterval(() => box.glow = box.glow + 6, 120)' } ],
+              lesson: () =>
+                '<h4>&#128161; That’s all animation is.</h4>A small change, repeated fast. Point it at a different number — <code>box.glow</code>, <code>box.size</code>, <code>box.opacity</code> — or flip the step negative to spin the other way. The <b>newest</b> timer wins (the old one stops). Run another.' }
+          ],
+          lesson: () =>
+          '<h4>Again, and again, and again.</h4>One change is a moment; many tiny changes in a row is <b>motion</b>. <b>setInterval</b> runs your function over and over, every so many milliseconds. The trick: read the box’s <i>current</i> value and nudge it each time —' +
+          '<div style="margin:7px 0 2px"><span class="ex">setInterval(() => box.rotation = box.rotation + 20, 120)</span></div>' +
+          'Each tick adds 20° to wherever it already is, so it <b>spins</b>. Set it going.' },
+        { check: loopCheck,
+          until: (ctx) => ctx.distinct('value') >= 2,
+          reveals: [
+            { when: 1,
+              hints: [ { label: 'loop(() => box.rotation = box.rotation + 6)', insert: 'loop(() => box.rotation = box.rotation + 6)' },
+                       { label: 'loop(() => box.glow = box.glow + 1)', insert: 'loop(() => box.glow = box.glow + 1)' } ],
+              lesson: () =>
+                '<h4>&#128161; This is how every game moves.</h4>Each frame: read the state, change it a little, draw. Add a <i>velocity</i> and a little <i>gravity</i> and you’ve got physics — but underneath it’s always this same loop. Change what you nudge, or how fast. Run another.' }
+          ],
+          lesson: () =>
+          '<h4>The game loop.</h4>A timer ticks on a clock; the <b>frame loop</b> ticks with the <i>screen</i> — about 60 times a second, perfectly smooth. <code>loop()</code> runs your function every frame (it’s <code>requestAnimationFrame</code> underneath — the same heartbeat the opening screen runs on):' +
+          '<div style="margin:7px 0 2px"><span class="ex">loop(() => box.rotation = box.rotation + 2)</span></div>' +
+          'A small step, 60 times a second — buttery. Start the loop.' }
+      ],
+      outro: (ctx) =>
+        '<h4>That’s time &amp; the loop.</h4>You made the box move without ever touching it again — <b>once</b> after a delay, <b>over and over</b> on a timer, and <b>every frame</b> in the loop that powers real games. Motion was never magic: it’s state changed a little, repeatedly. Every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). Keep playing, or climb to <b>Tier 7: Objects &amp; this</b>.'
+    });
+  })();
+  </script>
+</body>
+</html>

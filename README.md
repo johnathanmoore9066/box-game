@@ -25,7 +25,13 @@ box-game/
    ├─ tier0.html     — Variables & Values (color ladder: named → hex → rgb → gradient)
    ├─ tier1.html     — Properties (numbers, booleans, dot-notation)
    ├─ tier2.html     — Functions (define vs. call, parameters, return)
-   └─ tier3.html     — Events (click/hover handlers on the live box)
+   ├─ tier3.html     — Events (click/hover handlers on the live box)
+   ├─ tier4.html     — Arrays & loops (a list of squares, for…of, forEach + index)
+   ├─ tier5.html     — Conditionals & state (if/else on live state, a click toggle)
+   ├─ tier6.html     — Time & the loop (setTimeout, setInterval, a rAF frame loop)
+   ├─ tier7.html     — Objects & this (object literal, methods, this on live state)
+   ├─ tier8.html     — Classes (class/constructor, new instances, extends + super)
+   └─ tier9.html     — Modules (import named values/fns from a sibling, export your own)
 ```
 
 ## Onboarding (intended entry flow)
@@ -80,28 +86,41 @@ optional; the critical path stays completable for the impatient player. See `DES
 | 1 | Properties | numbers, booleans, dot-notation | ✅ built |
 | 2 | Functions | parameters, return, reuse | ✅ built |
 | 3 | Events | listeners, interaction | ✅ built |
-| 4 | Arrays & loops | many squares, iteration | ◻ next |
-| 5 | Conditionals & state | branching, boolean logic | ◻ |
-| 6 | Time & the loop | timers, requestAnimationFrame, physics | ◻ |
-| 7 | Objects & `this` | objects, methods, `this` | ◻ |
-| 8 | Classes | constructors, inheritance | ◻ |
-| 9 | Modules | export / import | ◻ |
+| 4 | Arrays & loops | many squares, iteration | ✅ built |
+| 5 | Conditionals & state | branching, boolean logic | ✅ built |
+| 6 | Time & the loop | timers, requestAnimationFrame, physics | ✅ built |
+| 7 | Objects & `this` | objects, methods, `this` | ✅ built |
+| 8 | Classes | constructors, inheritance | ✅ built |
+| 9 | Modules | export / import | ✅ built |
 | 10 | The opening screen | everything, composed | ✅ reference built |
 
 ## Status
 
-Foundation locked, plus the reveal mechanic and the first new-grammar tiers. The engine
-unfuses *valid?* from *advance?* — `goal` / `until` / `reveals` and the `ctx` reps
+The full spine is built — Tiers 0–9, plus the Tier-10 reference opening and both scenes.
+The engine unfuses *valid?* from *advance?* — `goal` / `until` / `reveals` and the `ctx` reps
 helpers — backward compatibly (omit them and a tier behaves exactly as before). **Tier 0**
 is the color ladder (named → hex → rgb → gradient, advancing on distinct colors, reveals
 that entice but never gate). **Tier 1** deepens properties (free-play reps + a negatives
 reveal). **Tier 2 (Functions)** and **Tier 3 (Events)** introduce real new grammar —
 function `define`/`call`/`return`, and `on("click", () => …)` handlers wired to the live
-box. The pattern they set: a tier brings a tiny parser for its one new idea, but **reuses
-`parseAssignment` + `assignCheck`** to actually run the box (a bound function body, or an
-event handler body, is just an assignment the engine already validates and applies). A
-`check` may return its own `parsed` so reps/`distinct` work for non-assignment grammars.
-Both scenes (opening + shell) still run on the shared engine.
+box. **Tier 4 (Arrays & loops)** adds a `Squares` renderer to the engine — one box becomes
+a list, restyled by `for…of` and varied by a `forEach` index. **Tier 5 (Conditionals &
+state)** branches on the box's live state (`if/else`, comparisons) and ends on a stateful
+click toggle. **Tier 6 (Time & the loop)** makes the box move on its own — `setTimeout`,
+`setInterval`, and a `requestAnimationFrame` frame loop whose body re-reads live state and
+nudges it (motion = one assignment, repeated). **Tier 7 (Objects & `this`)** reveals the box
+has *been* an object all along: a literal, a method stored on it, and `this` reading the
+object's own live state. **Tier 8 (Classes)** is a blueprint for boxes — `class`/`constructor`,
+`new` instances drawn into the `Squares` collection, and real `extends`/`super` inheritance.
+**Tier 9 (Modules)** turns the ledger into a module that `import`s named values/functions
+from a sibling `palette` and `export`s its own. The pattern they all set: a tier brings a tiny
+parser for its one new idea, but **reuses `parseAssignment` + `assignCheck`** to actually run
+the box — a bound function body, an event handler body, a loop body (`assignCheck` with the
+loop variable as the "name"), an if-branch, a timer/frame body, a method body, a class
+constructor (validated against the same `props` registry), or an imported value, is underneath
+just an assignment the engine already validates and applies. A `check` may return its own
+`parsed` so reps/`distinct` work for grammars with no `=`. Both scenes (opening + shell) still
+run on the shared engine.
 
 **Variable naming is wired (the old open seam, now closed).** The shell persists the
 player's chosen name; every tier reads in that name automatically, and the engine owns
