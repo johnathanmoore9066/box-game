@@ -28,7 +28,10 @@ BoxGame.registerTier(1, function () {
         // the box is yours now — but stay a while: touch a few different properties
         // before the tier resolves, and discover that numbers run negative too.
         { check: BoxGame.assignCheck(),
-          until: (ctx) => ctx.distinct('prop') >= 3,
+          // two distinct properties in this free-play step is enough to move on. (3 was a
+          // trap: steps 1-2 already spent `size` and `rounded`, leaving only opacity +
+          // rotation among the examples here — exactly 2, one short of advancing.)
+          until: (ctx) => ctx.distinct('prop') >= 2,
           reveals: [
             { when: 1,
               hints: [ { label: 'box.rotation = -45', insert: 'box.rotation = -45' } ],
