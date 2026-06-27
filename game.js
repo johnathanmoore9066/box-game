@@ -157,6 +157,7 @@
     resetBtn.onclick = () => {
       if (!armed) { armed = true; resetBtn.textContent = 'click again to confirm'; return; }   // non-blocking confirm
       try { localStorage.removeItem(KEY); localStorage.removeItem('boxgame.name'); } catch (e) {}
+      BoxGame.clearCarry();                          // drop the carried box state + accumulated ledger
       progress = { onboarded: false, highestUnlocked: 0, current: 0, completed: {}, discovered: {} };
       closePanel(); runOnboarding();
     };

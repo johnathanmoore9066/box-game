@@ -60,7 +60,9 @@ reveals fired). Progress lives in `localStorage` under `boxgame.progress` (+ `bo
   `Box` (canonical state), `Stage` (renders it), `Ledger` (the accumulating read-only
   pane), `Console`, `CosmicField` (the spectacle + collapse), plus `highlight`,
   `isColor`, `parseAssignment`, `mountTier`, the box-property registry `props`, the
-  validator factory `assignCheck`, the naming helpers `varName` / `setVarName`, and the
+  validator factory `assignCheck`, the naming helpers `varName` / `setVarName`, the
+  carried-state helpers **`boxState` / `saveBoxState` / `ledgerLines` / `saveLedgerLines` /
+  `clearCarry`** (the box + ledger that follow the player across tiers), and the
   host hooks **`registerTier` / `tiers`** (the registry) and **`discover` / `onDiscover`**.
   `mountTier` additionally accepts optional `onComplete(ctx)` / `onAdvance(ctx)` (the
   latter renders the Continue button) — all backward compatible.
@@ -149,7 +151,16 @@ opening spectacle → name the box → collapse → Tier 0; the old level-select
 **Menu** panel and never the landing. Progress + tier locking + a **Continue** button +
 a **Discoveries** panel are wired, all saved to `localStorage`. Tiers were converted from
 standalone `.html` pages into config factories registered via `BoxGame.registerTier`.
-*Next:* **Phase 2** — carry the box's visual state and an accumulating ledger across
-tiers; **Phase 3** — a Tier-10 free-edit finale, and an error-explainer that files
+
+**Phase 2 — the box follows the player (done).** This is the game's whole premise made
+literal: the square you shape and the code you write *persist across tiers*. The engine
+saves the box's visual state (`boxgame.box`) and the **accumulating ledger** (`boxgame.ledger`)
+on every commit, and `mountTier` seeds the next tier from them — the carried state wins over
+the tier's defaults, so your color/size/shape/rotation/glow carry over exactly as you left
+them, and each new tier opens with the *full* record of everything you've written so far,
+then appends its own banner comment (no more re-seeding `box = "grey"`). State is written
+on commit, not on every render, so Tier 6's 60fps loop doesn't hammer storage. A Menu
+**Reset** clears the carried state alongside name + progress (`BoxGame.clearCarry()`).
+*Next:* **Phase 3** — a Tier-10 free-edit finale, and an error-explainer that files
 syntax/“traceback” explanations into Discoveries. (The `scenes/*.html` files are now
 orphaned — their onboarding logic lives in `game.js`; cleanup is a later step.)

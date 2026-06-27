@@ -62,6 +62,19 @@ window.BoxGame = (function () {
   function setVarName(n) { try { if (isName(n)) localStorage.setItem('boxgame.name', n); } catch (e) {} }
   function clearVarName() { try { localStorage.removeItem('boxgame.name'); } catch (e) {} }
 
+  /* ---------- carried state: the box follows the player across tiers ----------
+     The whole game's premise is that code you write stays forever and the next
+     tier builds on it. So the box's *visual* state (color/size/…) and the
+     accumulating ledger persist across tiers, keyed off the player's saved game.
+     Written on each commit (not on every render) so tier 6's 60fps loop doesn't
+     hammer storage. The dev/menu reset clears these alongside name + progress. */
+  const BOX_KEY = 'boxgame.box', LEDGER_KEY = 'boxgame.ledger';
+  function boxState() { try { const s = JSON.parse(localStorage.getItem(BOX_KEY)); return (s && typeof s === 'object') ? s : null; } catch (e) { return null; } }
+  function saveBoxState(s) { try { localStorage.setItem(BOX_KEY, JSON.stringify(s)); } catch (e) {} }
+  function ledgerLines() { try { const a = JSON.parse(localStorage.getItem(LEDGER_KEY)); return Array.isArray(a) ? a : null; } catch (e) { return null; } }
+  function saveLedgerLines(a) { try { localStorage.setItem(LEDGER_KEY, JSON.stringify(a)); } catch (e) {} }
+  function clearCarry() { try { localStorage.removeItem(BOX_KEY); localStorage.removeItem(LEDGER_KEY); } catch (e) {} }
+
   // swap the literal identifier `box` for the chosen name in pure-code strings…
   function renameIdent(str, name) {
     if (!str || !isName(name) || name === 'box') return str;
@@ -435,9 +448,19 @@ window.BoxGame = (function () {
     const name = isName(cfg.varName) ? cfg.varName : varName();
     root.innerHTML = layoutHTML(cfg, name);
 
-    const box = new Box(cfg.box || {});
+    // the box follows the player: carried visual state wins over the tier's defaults,
+    // so the square you shaped in an earlier tier shows up here exactly as you left it.
+    const carried = boxState();
+    const box = new Box(Object.assign({}, cfg.box || {}, carried || {}));
     const stage = new Stage(root.querySelector('#boxEl')).bind(box);
-    const ledger = new Ledger(root.querySelector('.code'), name).load((cfg.ledger || ['box = "grey"']).map(l => renameIdent(l, name)));
+    // accumulating ledger: once there's saved history, every later tier appends its
+    // banner comment to the full record (never re-seeding "box = grey"); a fresh game
+    // falls back to the tier's own ledger. `ledgerStore` is the live, persisted array.
+    const tierLedger = (cfg.ledger || ['box = "grey"']);
+    const savedLines = ledgerLines();
+    const banner = tierLedger.filter(l => /^\s*\/\//.test(l));   // leading comment line(s)
+    const ledgerStore = (savedLines && savedLines.length) ? savedLines.concat(banner) : tierLedger.slice();
+    const ledger = new Ledger(root.querySelector('.code'), name).load(ledgerStore.map(l => renameIdent(l, name)));
     const con = new Console(root.querySelector('.console'));
     const captionEl = root.querySelector('.caption');
     const dots = root.querySelectorAll('.pdot');
@@ -515,6 +538,11 @@ window.BoxGame = (function () {
       const commitText = res.commit || String(raw).trim();
       ledger.commit(commitText);
       if (res.apply) res.apply(box);
+      // persist what the player just did: the line into the accumulating ledger, and
+      // the box's current visual state so the next tier opens on the same square.
+      ledgerStore.push(commitText);
+      saveLedgerLines(ledgerStore);
+      saveBoxState(box.state);
       stage.pop();
       setCaption(commitText);
       con.clear();
@@ -655,6 +683,7 @@ window.BoxGame = (function () {
     mountTier: mountTier, injectStyles: ensureStyles,
     registerTier: registerTier, tiers: TIERS, discover: discover, onDiscover: setDiscoverHandler,
     props: PROPS, colorForm: colorForm, assignCheck: assignCheck,
-    varName: varName, setVarName: setVarName, clearVarName: clearVarName
+    varName: varName, setVarName: setVarName, clearVarName: clearVarName,
+    boxState: boxState, saveBoxState: saveBoxState, ledgerLines: ledgerLines, saveLedgerLines: saveLedgerLines, clearCarry: clearCarry
   };
 })();
