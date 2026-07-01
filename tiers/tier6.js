@@ -136,7 +136,7 @@ BoxGame.registerTier(6, function () {
           lesson: () =>
           '<h4>Again, and again, and again.</h4>One change is a moment; many tiny changes in a row is <b>motion</b>. <b>setInterval</b> runs your function over and over, every so many milliseconds. The trick: read the box’s <i>current</i> value and nudge it each time —' +
           '<div style="margin:7px 0 2px"><span class="ex">setInterval(() => box.rotation = box.rotation + 20, 120)</span></div>' +
-          'Each tick adds 20° to wherever it already is, so it <b>spins</b>. Set it going.' },
+          'Each tick adds 20° to wherever it already is, so it <b>spins</b>. Set it going — then try a <b>second, different</b> motion.' },
         { check: loopCheck,
           until: (ctx) => ctx.distinct('value') >= 2,
           reveals: [
@@ -149,7 +149,7 @@ BoxGame.registerTier(6, function () {
           lesson: () =>
           '<h4>The game loop.</h4>A timer ticks on a clock; the <b>frame loop</b> ticks with the <i>screen</i> — about 60 times a second, perfectly smooth. <code>loop()</code> runs your function every frame (it’s <code>requestAnimationFrame</code> underneath — the same heartbeat the opening screen runs on):' +
           '<div style="margin:7px 0 2px"><span class="ex">loop(() => box.rotation = box.rotation + 2)</span></div>' +
-          'A small step, 60 times a second — buttery. Start the loop.' }
+          'A small step, 60 times a second — buttery. Start the loop — then run a <b>different</b> one.' }
       ],
       outro: (ctx) =>
         '<h4>That’s time &amp; the loop.</h4>You made the box move without ever touching it again — <b>once</b> after a delay, <b>over and over</b> on a timer, and <b>every frame</b> in the loop that powers real games. Motion was never magic: it’s state changed a little, repeatedly. Every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). Keep playing, or climb to <b>Tier 7: Objects &amp; this</b>.'

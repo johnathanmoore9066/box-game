@@ -173,6 +173,19 @@ Records persist in `boxgame.progress.discovered` under `e.<code>` keys, alongsid
 discoveries. Pacing-only nudges ("this step wants `box.size`") stay uncoded, so they never
 file a traceback.
 
+**Roadblock fixes (Phase A of the polish pass, done).** Progress now survives a remount:
+the host saves the step reached per tier (`progress.steps`) and passes `startStep` /
+`completed` into `mountTier`, so a refresh resumes mid-tier and a completed tier lands
+on its done state — teaser + **Continue** visible immediately, never a re-walk. On a
+completed tier the input stays live and *any* step's grammar is accepted (first check
+that takes the line wins), so free play works without the tier's local parser state.
+Trailing semicolons are stripped engine-wide (plus inside Tier 2 function bodies and
+Tier 7 method bodies); `let`/`const`/`var` on an existing name gets a teaching error
+(`redeclare`, catalogued in Tracebacks); Tier 4 accepts `const row = […]` where a new
+name is legitimately born. Revisited tiers no longer duplicate their ledger banner.
+Every step gated by an `until` predicate now *says* its bar in the lesson ("five
+different colors opens the next tier") — reveals entice, and the gates are visible.
+
 **Phase 3 — the finale (Tier 10 done).** The spine ends on an open canvas. `tiers/tier10.js`
 registers like any tier but is `freeplay: true` — a single step that accepts everything the
 game taught (the Tier-0 bare form `box = "blue"` *and* any `box.prop = value`, routed by

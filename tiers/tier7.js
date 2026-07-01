@@ -62,6 +62,7 @@ BoxGame.registerTier(7, function () {
 
     // a method body is one assignment:  this.prop = <expr|literal>  (or obj.prop = …)
     function methodBody(body, ctx) {
+      body = String(body).replace(/;+\s*$/, '');   // a trailing semicolon is fine JS
       const nm = OBJ.name;
       const m = body.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\s*=\s*([\s\S]+)$/);
       if (!m) return { error: 'A method body changes the object — like  this.size = this.size + 30  or  ' + nm + '.color = "gold"' };
@@ -177,7 +178,7 @@ BoxGame.registerTier(7, function () {
           lesson: () =>
           '<h4>this — whichever object it runs on.</h4>Your last method hard-coded <code>ball</code> inside it. But a method can say <code>this</code> to mean “the object I belong to” — so it isn’t tied to one name, and it can read its <i>own</i> current state:' +
           '<div style="margin:7px 0 2px"><span class="ex">ball.pulse = function() { this.size = this.size + 30 }</span></div>' +
-          '<code>this.size</code> reads where the box is <i>now</i> and adds 30. Define it, then <b>call it a few times</b> — it grows each time.' }
+          '<code>this.size</code> reads where the box is <i>now</i> and adds 30. Define it, then <b>call it twice</b> — it grows each time.' }
       ],
       outro: (ctx) =>
         '<h4>That’s objects, methods &amp; this.</h4>You bundled values under one name, gave that bundle <b>behavior</b>, and used <code>this</code> so a method works with its own live state — the very shape the box itself has had all along. Objects are how real programs keep data and the actions on it <i>together</i>. Every line still stands (you wrote <b>' + ctx.ledger.count() + '</b>). Keep playing, or climb to <b>Tier 8: Classes</b>.'

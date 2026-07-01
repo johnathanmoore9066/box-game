@@ -169,6 +169,8 @@ window.BoxGame = (function () {
   function parseAssignment(input) {
     const line = String(input).trim();
     if (!line) return { error: 'Type a line of code.' };
+    const decl = line.match(/^(let|const|var)\s+([\s\S]*)$/);
+    if (decl) return { error: '“' + decl[1] + '” creates a brand-new variable — this name already exists. Assign to it directly:  ' + (decl[2].trim() || 'box = "blue"'), code: 'redeclare' };
     const m = line.match(/^([A-Za-z_$][\w$]*)(\.[A-Za-z_$][\w$]*)?\s*(=+)\s*(.*)$/);
     if (!m) {
       if (!/=/.test(line)) return { error: 'To set a value you need an  =  sign.', code: 'no-equals' };
@@ -463,13 +465,21 @@ window.BoxGame = (function () {
     const tierLedger = (cfg.ledger || ['box = "grey"']);
     const savedLines = ledgerLines();
     const banner = tierLedger.filter(l => /^\s*\/\//.test(l));   // leading comment line(s)
-    const ledgerStore = (savedLines && savedLines.length) ? savedLines.concat(banner) : tierLedger.slice();
+    // dedupe: a revisited tier's banner is already in the saved record — don't re-append
+    const newBanner = savedLines ? banner.filter(b => savedLines.indexOf(b) === -1) : banner;
+    const ledgerStore = (savedLines && savedLines.length) ? savedLines.concat(newBanner) : tierLedger.slice();
     const ledger = new Ledger(root.querySelector('.code'), name).load(ledgerStore.map(l => renameIdent(l, name)));
     const con = new Console(root.querySelector('.console'));
     const captionEl = root.querySelector('.caption');
     const dots = root.querySelectorAll('.pdot');
     const steps = cfg.steps || [];
-    let step = 0;
+    // resume where the player left off: the host passes the step they'd reached
+    // (cfg.startStep) and whether the tier was already finished (cfg.completed), so a
+    // refresh or revisit never re-walls the climb — Continue must survive a remount.
+    const doneOnEntry = !cfg.freeplay && steps.length > 0 &&
+      (!!cfg.completed || (cfg.startStep | 0) >= steps.length);
+    let step = doneOnEntry ? steps.length
+             : Math.max(0, Math.min((cfg.startStep | 0), Math.max(steps.length - 1, 0)));
 
     // opt-in many-squares stage (Tier 4): hide the lone box, draw a collection instead.
     let squares = null;
@@ -537,11 +547,27 @@ window.BoxGame = (function () {
       return stepHistory.length >= (cur.goal || 1);
     }
 
-    con.onRun(raw => {
+    con.onRun(input => {
+      // trailing semicolons are correct JavaScript — never reject a line over one
+      const raw = String(input).trim().replace(/;+$/, '');
       const cur = steps[Math.min(step, steps.length - 1)];
       if (!cur) return;
       const parsed = parseAssignment(raw);
-      const res = cur.check(parsed, ctx, raw) || {};
+      let res;
+      if (step >= steps.length) {
+        // tier already complete: any step's grammar is welcome — keep playing freely.
+        // First check that accepts the line wins; if none do, show the first step's
+        // error (the tier's canonical grammar) rather than the most obscure one.
+        let firstErr = null;
+        for (const s of steps) {
+          res = s.check(parsed, ctx, raw) || {};
+          if (!res.error) break;
+          if (!firstErr) firstErr = res;
+        }
+        if (res.error) res = firstErr;
+      } else {
+        res = cur.check(parsed, ctx, raw) || {};
+      }
       // an error still teaches: surface it inline, and file a traceback explanation
       // into Discoveries (once) when the check tagged it with a reusable code.
       if (res.error) { con.err(res.error); if (res.code) discover({ tier: cfg.tier, errorCode: res.code }); return; }
@@ -574,6 +600,7 @@ window.BoxGame = (function () {
       step++;
       stepHistory = [];
       firedReveals.clear();
+      if (typeof cfg.onStep === 'function') cfg.onStep(step);   // host persists the climb
       dots.forEach((d, i) => d.classList.toggle('on', i < step));
       if (step >= steps.length) {
         const t = root.querySelector('.teaser'); if (t) t.classList.add('show');
@@ -590,7 +617,20 @@ window.BoxGame = (function () {
       }
     });
 
-    showLesson(steps.length ? steps[0].lesson(ctx) : '');
+    dots.forEach((d, i) => d.classList.toggle('on', i < step));
+    if (doneOnEntry) {
+      // already finished: land on the done state — teaser + Continue visible at once,
+      // no re-walking the steps (the input stays live for free play above).
+      const t = root.querySelector('.teaser'); if (t) t.classList.add('show');
+      showLesson(cfg.outro ? cfg.outro(ctx) : steps[steps.length - 1].lesson(ctx));
+      const go = root.querySelector('.teaser .go');
+      if (go && typeof cfg.onAdvance === 'function') {
+        go.style.display = '';
+        go.onclick = () => cfg.onAdvance(ctx);
+      }
+    } else {
+      showLesson(steps.length ? steps[Math.min(step, steps.length - 1)].lesson(ctx) : '');
+    }
     buildHints(hintsEl, cfg.hints, con, name);
     con.focus();
     return ctx;

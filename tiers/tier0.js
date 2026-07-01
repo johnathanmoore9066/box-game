@@ -36,7 +36,7 @@ BoxGame.registerTier(0, function () {
           lesson: () =>
             '<h4>Meet box.</h4>The box has a <i>name</i> — <code>box</code> — and a <i>value</i> — <code>"grey"</code>. Together that’s a <b>variable</b>. Repaint it by assigning a new value with a single <code>=</code>:' +
             '<div style="margin:7px 0 2px"><span class="ex">box = "blue"</span> &nbsp; <span class="ex">box = "tomato"</span> &nbsp; <span class="ex">box = "gold"</span></div>' +
-            'Give <code>box</code> a color — then a few more. The box always shows your <b>last</b> line.'
+            'Give <code>box</code> a color — then keep going: <b>five different colors</b> opens the next tier. The box always shows your <b>last</b> line.'
         }
       ],
       outro: (ctx) =>

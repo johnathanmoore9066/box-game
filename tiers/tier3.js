@@ -67,7 +67,7 @@ BoxGame.registerTier(3, function () {
                 '<h4>&#128161; The last handler wins.</h4>Wire <code>"click"</code> again and the newest handler replaces the old — just like the last <i>line</i> wins. And a handler can do <b>anything</b> you can write: set any property, even call a function. Wire one more, your way.' }
           ],
           lesson: () =>
-          '<h4>You’re holding the controller now.</h4>The box is yours to choreograph. Wire up <b>another</b> reaction — a different event, or a new thing for click to do:' +
+          '<h4>You’re holding the controller now.</h4>The box is yours to choreograph. Wire up <b>two more</b> reactions — different events, or new things for click to do:' +
           '<div style="margin:7px 0 2px"><span class="ex">on("click", () => box.rotation = 20)</span> &nbsp; <span class="ex">on("dblclick", () => box = "gold")</span></div>' +
           'Make the box dance.' }
       ],

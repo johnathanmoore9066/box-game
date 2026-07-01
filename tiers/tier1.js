@@ -40,7 +40,7 @@ BoxGame.registerTier(1, function () {
           ],
           lesson: () =>
           '<h4>Decimals &amp; ranges — then it’s yours.</h4>Numbers can have decimals. <code>box.opacity</code> runs from <code>0</code> (invisible) to <code>1</code> (solid), so <code>0.5</code> is half see-through. Set it — ' +
-          'then the box is yours: change <b>size, rounded, opacity, rotation, color</b>, a few of them, in any order you like.' }
+          'then the box is yours: change <b>size, rounded, opacity, rotation, color</b> in any order — touch <b>two different properties</b> and the tier resolves.' }
       ],
       outro: (ctx) =>
         '<h4>One box, many properties.</h4>You’ve been setting <b>properties</b> — named parts of the box, each with its own type: text for <code>color</code>, numbers (whole, decimal, even negative) for <code>size</code> and <code>rotation</code>, true/false for <code>rounded</code> — ' +

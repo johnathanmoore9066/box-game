@@ -214,7 +214,7 @@ BoxGame.registerTier(8, function () {
           lesson: () =>
           '<h4>Build on a blueprint.</h4>The real power: a class can <b>extend</b> another — inherit everything it does, then add or change. <code>super(...)</code> runs the parent’s constructor first; then you specialize:' +
           '<div style="margin:7px 0 2px"><span class="ex">class BigSquare extends Square { constructor(color) { super(color); this.size = 200 } }</span></div>' +
-          'Define it, then build one — <code>new BigSquare("gold")</code>. It’s a Square (it gets the color) <i>and</i> bigger.' }
+          'Define it, then build <b>two</b> (vary the color) — <code>new BigSquare("gold")</code>. Each is a Square (it gets the color) <i>and</i> bigger.' }
       ],
       outro: (ctx) =>
         '<h4>That’s classes.</h4>A <b>class</b> is a blueprint; <code>new</code> stamps out <b>instances</b> that share it but carry their own data; and <code>extends</code> lets one blueprint <b>build on</b> another. You went from a single hand-made object to a whole family — the leap a real codebase makes when it stops copying and starts <i>modeling</i>. Keep playing, or climb to <b>Tier 9: Modules</b>.'

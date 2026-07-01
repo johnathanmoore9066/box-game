@@ -32,7 +32,7 @@ BoxGame.registerTier(4, function () {
     // ---- step 1: make an array of squares ----
     function makeArray(p, ctx, raw) {
       const line = String(raw).trim();
-      const m = line.match(/^([A-Za-z_$][\w$]*)\s*=\s*\[\s*([\s\S]*?)\s*\]$/);
+      const m = line.match(/^(?:const\s+|let\s+|var\s+)?([A-Za-z_$][\w$]*)\s*=\s*\[\s*([\s\S]*?)\s*\]$/);
       if (!m) return { error: 'An array is a list in square brackets:  row = ["tomato", "gold", "teal"]' };
       if (m[1] === ctx.name) return { error: 'That name is your box. Give the list its own name, like  row = [ … ]' };
       const parts = m[2].trim() === '' ? [] : m[2].split(',').map(s => s.trim());
@@ -107,7 +107,7 @@ BoxGame.registerTier(4, function () {
           lesson: () =>
           '<h4>From one square to many.</h4>You’ve perfected a single box. Now hold <i>several</i> at once. An <b>array</b> is an ordered list, written in square brackets:' +
           '<div style="margin:7px 0 2px"><span class="ex">row = ["tomato", "gold", "teal"]</span></div>' +
-          'Each item is a square; the stage draws the whole list. Make one (give it its own name).' },
+          'Each item is a square; the stage draws the whole list. Make one (give it its own name) — then commit a <b>second, different</b> list and watch the stage redraw.' },
         { check: loopAll,
           until: (ctx) => ctx.distinct('value') >= 2,
           reveals: [
@@ -119,7 +119,7 @@ BoxGame.registerTier(4, function () {
           lesson: () =>
           '<h4>Do one thing to all of them.</h4>Writing a line per square doesn’t scale. A <b>loop</b> runs the same body for every item. <code>for (s of row)</code> hands you each square in turn as <code>s</code>:' +
           '<div style="margin:7px 0 2px"><span class="ex">for (s of row) { s.size = 70 }</span></div>' +
-          'Resize the whole row in one line.' },
+          'Resize the whole row in one line — then loop again with a <b>different body</b>.' },
         { check: loopIndex,
           until: (ctx) => ctx.distinct('value') >= 2,
           reveals: [
@@ -131,7 +131,7 @@ BoxGame.registerTier(4, function () {
           lesson: () =>
           '<h4>Make each one its own.</h4>So far every square got the <i>same</i> value. <b>forEach</b> also hands you each square’s <b>position</b> — <code>i</code> (0, 1, 2…) — so you can vary them:' +
           '<div style="margin:7px 0 2px"><span class="ex">row.forEach((s, i) => s.rotation = i * 15)</span></div>' +
-          'Fan them out — each turned a little more than the last.' }
+          'Fan them out — each turned a little more than the last. <b>Two different effects</b> and the tier resolves.' }
       ],
       outro: (ctx) =>
         '<h4>That’s arrays &amp; loops.</h4>One name held <b>many</b> squares; one <b>loop</b> styled them all; one <b>index</b> made each its own. You went from a single box to a whole field — the shape the opening screen is made of — in a handful of lines that all still stand. Keep playing, or climb to <b>Tier 5: Conditionals &amp; state</b>.'

@@ -14,7 +14,7 @@ BoxGame.registerTier(2, function () {
     // function name(param) { body }  — all on one line
     const parseDef = (line) => {
       const m = line.match(/^function\s+([A-Za-z_$][\w$]*)\s*\(\s*([A-Za-z_$][\w$]*)?\s*\)\s*\{\s*([\s\S]*?)\s*\}$/);
-      return m ? { name: m[1], param: m[2] || null, body: m[3].trim() } : null;
+      return m ? { name: m[1], param: m[2] || null, body: m[3].trim().replace(/;+\s*$/, '') } : null;
     };
     const assignRe = (nm) => new RegExp('^(' + esc(nm) + '(?:\\.[A-Za-z_$][\\w$]*)?)\\s*=\\s*(.+)$');
 
@@ -129,7 +129,7 @@ BoxGame.registerTier(2, function () {
           lesson: () =>
           '<h4>Now run it.</h4>Notice the box didn’t change — <i>defining</i> a recipe isn’t <i>cooking</i>. To run a function you <b>call</b> it: its name, with a value in the parentheses.' +
           '<div style="margin:7px 0 2px"><span class="ex">paint("tomato")</span></div>' +
-          'Call your function with a color (use the name you gave it).' },
+          'Call your function with a color (use the name you gave it) — <b>three different colors</b> completes the step.' },
         { check: defineReturner, lesson: () =>
           '<h4>A function can hand something back.</h4>Some functions don’t act — they <b>compute</b> and <b>return</b> a value for you to use. This one takes a number and returns a bigger one:' +
           '<div style="margin:7px 0 2px"><span class="ex">function grow(n) { return n + 40 }</span></div>' +

@@ -67,17 +67,19 @@
     { code: 'out-of-range',      t: 'A value out of range',        d: 'A property can carry limits — a size, an opacity — and a value past them can’t apply. Stay inside the range the property allows.' },
     { code: 'unknown-prop',      t: 'A property that doesn’t exist', d: 'You can only set properties the box actually has. Reach for one it doesn’t define and there’s nothing there to change.' },
     { code: 'unknown-color',     t: 'A color the browser doesn’t know', d: 'Named colors are a fixed vocabulary the browser ships with. Outside it, spell the color as a number — a hex like #4dd0ff, or rgb(…).' },
-    { code: 'needs-dot',         t: 'Reaching a part with a dot',  d: 'The box is one thing made of named parts. A dot reaches inside to one of them — box.size — so you change that part, not the whole box.' }
+    { code: 'needs-dot',         t: 'Reaching a part with a dot',  d: 'The box is one thing made of named parts. A dot reaches inside to one of them — box.size — so you change that part, not the whole box.' },
+    { code: 'redeclare',         t: '“let” names something new',   d: 'let, const and var bring a brand-new name into existence. A name that already exists is simply assigned to — name = value, no keyword. You’ll reach for let when it’s time to invent names of your own.' }
   ];
 
   const $ = (s) => document.querySelector(s);
   const KEY = 'boxgame.progress';
-  let progress = { onboarded: false, highestUnlocked: 0, current: 0, completed: {}, discovered: {} };
+  let progress = { onboarded: false, highestUnlocked: 0, current: 0, completed: {}, discovered: {}, steps: {} };
 
   function load() {
     try { const raw = localStorage.getItem(KEY); if (raw) progress = Object.assign(progress, JSON.parse(raw)); } catch (e) {}
     progress.completed = progress.completed || {};
     progress.discovered = progress.discovered || {};
+    progress.steps = progress.steps || {};
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch (e) {} }
   function unlock(n) { if (n > progress.highestUnlocked) progress.highestUnlocked = n; }
@@ -96,6 +98,12 @@
     progress.current = n; save();
     const cfg = BoxGame.tiers[n]();
     cfg.onComplete = () => complete(n);
+    // resume support: hand the engine the step the player reached and whether the
+    // tier is already done, so a refresh or revisit lands where they left off
+    // (a completed tier shows its Continue immediately — never a re-walk).
+    cfg.completed = !!progress.completed[n];
+    cfg.startStep = progress.steps[n] || 0;
+    cfg.onStep = (s) => { progress.steps[n] = s; save(); };
     if (BoxGame.tiers[n + 1]) cfg.onAdvance = () => goTo(n + 1);   // Continue → only if there's a next
     BoxGame.mountTier(cfg);
     if (cfg.freeplay) complete(n);   // the finale never "advances" — reaching it is the finish
@@ -178,7 +186,7 @@
       if (!armed) { armed = true; resetBtn.textContent = 'click again to confirm'; return; }   // non-blocking confirm
       try { localStorage.removeItem(KEY); localStorage.removeItem('boxgame.name'); } catch (e) {}
       BoxGame.clearCarry();                          // drop the carried box state + accumulated ledger
-      progress = { onboarded: false, highestUnlocked: 0, current: 0, completed: {}, discovered: {} };
+      progress = { onboarded: false, highestUnlocked: 0, current: 0, completed: {}, discovered: {}, steps: {} };
       closePanel(); runOnboarding();
     };
   }

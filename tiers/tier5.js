@@ -115,7 +115,7 @@ BoxGame.registerTier(5, function () {
           lesson: () =>
           '<h4>Let the box decide.</h4>Until now every line just <i>happened</i>. <b>if</b> runs its block only <b>when a test is true</b>. The test reads the box’s own <b>state</b> — its current size, color, opacity:' +
           '<div style="margin:7px 0 2px"><span class="ex">if (box.size > 100) { box.color = "tomato" }</span></div>' +
-          'The box starts at size 150, so this one passes. Write it (compare with <code>&gt;</code>, <code>&lt;</code>, <code>===</code>).' },
+          'The box starts at size 150, so this one passes. Write one — then a second with a <b>different test</b> (compare with <code>&gt;</code>, <code>&lt;</code>, <code>===</code>).' },
         { check: ifCheck({ needElse: true }),
           until: (ctx) => ctx.distinct('value') >= 2,
           reveals: [
@@ -127,7 +127,7 @@ BoxGame.registerTier(5, function () {
           lesson: () =>
           '<h4>Two paths, one taken.</h4>Add an <b>else</b> for when the test fails — now the box always does <i>something</i>, just a different thing each way:' +
           '<div style="margin:7px 0 2px"><span class="ex">if (box.opacity < 0.5) { box.color = "blue" } else { box.color = "gold" }</span></div>' +
-          'Opacity is 1 right now, so the <code>else</code> wins. Write an if/else.' },
+          'Opacity is 1 right now, so the <code>else</code> wins. Write one — then another with a <b>different test</b>.' },
         { check: toggleCheck, lesson: () =>
           '<h4>State you can flip.</h4>Here’s the payoff: put a branch <i>inside a click handler</i>. Each click re-checks the box’s <b>current</b> size and does the opposite — that’s a <b>toggle</b>, and the box’s size <i>is</i> the state it remembers:' +
           '<div style="margin:7px 0 2px"><span class="ex">on("click", () => { if (box.size > 120) { box.size = 80 } else { box.size = 160 } })</span></div>' +
